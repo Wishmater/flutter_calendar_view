@@ -2,8 +2,12 @@
 // Use of this source code is governed by a MIT-style license
 // that can be found in the LICENSE file.
 
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 
+import '../../calendar_view.dart';
+import '../../util/custom_painters.dart';
+import '../../util/my_sliver_sticky_header.dart';
 import '../calendar_constants.dart';
 import '../calendar_controller_provider.dart';
 import '../calendar_event_data.dart';
@@ -86,7 +90,7 @@ class MonthView<T extends Object?> extends StatefulWidget {
   /// Default value is [Colors.blue]
   ///
   /// It will take affect only if [showBorder] is set.
-  final Color borderColor;
+  final Color? borderColor;
 
   /// Page transition duration used when user try to change page using
   /// [MonthView.nextPage] or [MonthView.previousPage]
@@ -113,13 +117,16 @@ class MonthView<T extends Object?> extends StatefulWidget {
   /// It will take affect only if [showBorder] is set.
   final double borderSize;
 
-  /// Defines aspect ratio of day cells in month calendar page.
-  final double cellAspectRatio;
+  /// Defines the minimum height of a cell.
+  final double? minCellHeight;
 
-  /// Width of month view.
-  ///
-  /// If null is provided then It will take width of closest [MediaQuery].
-  final double? width;
+  /// Defines wether the cell will expand beyond the minimum height
+  /// if the contents don't fit
+  final bool expandCells;
+
+  /// If not null and the width of context is less than minWidth,
+  /// a horizontal scrollable will be created
+  final double? minWidth;
 
   /// This method will be called when user long press on calendar.
   final DatePressCallback? onDateLongPress;
@@ -132,26 +139,21 @@ class MonthView<T extends Object?> extends StatefulWidget {
   /// Style for MontView header.
   final HeaderStyle headerStyle;
 
-  /// Option for SafeArea.
-  final SafeAreaOption safeAreaOption;
-
   /// Main [Widget] to display month view.
   const MonthView({
     Key? key,
     this.showBorder = true,
-    this.borderColor = Constants.defaultBorderColor,
+    this.borderColor,
     this.cellBuilder,
     this.minMonth,
     this.maxMonth,
     this.controller,
     this.initialMonth,
     this.borderSize = 1,
-    this.cellAspectRatio = 0.55,
     this.headerBuilder,
     this.weekDayBuilder,
     this.pageTransitionDuration = const Duration(milliseconds: 300),
     this.pageTransitionCurve = Curves.ease,
-    this.width,
     this.onPageChange,
     this.onCellTap,
     this.onEventTap,
@@ -161,7 +163,9 @@ class MonthView<T extends Object?> extends StatefulWidget {
     this.dateStringBuilder,
     this.weekDayStringBuilder,
     this.headerStyle = const HeaderStyle(),
-    this.safeAreaOption = const SafeAreaOption(),
+    this.minWidth = 800,
+    this.expandCells = true,
+    this.minCellHeight = 128,
   }) : super(key: key);
 
   @override
@@ -173,19 +177,19 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
   late DateTime _minDate;
   late DateTime _maxDate;
 
-  late DateTime _currentDate;
+  final ValueNotifier<int> _currentIndexNotifier = ValueNotifier(0);
+  int get _currentIndex => _currentIndexNotifier.value;
+  set _currentIndex(int value) {
+    _previousIndex = _currentIndex;
+    _currentIndexNotifier.value = value;
+  }
+  int? _previousIndex;
 
-  late int _currentIndex;
+  DateTime get _currentDate =>
+      DateTime(_minDate.year, _minDate.month + _currentIndex);
+  // (widget.initialMonth ?? DateTime.now()).withoutTime;
 
   int _totalMonths = 0;
-
-  late PageController _pageController;
-
-  late double _width;
-  late double _height;
-
-  late double _cellWidth;
-  late double _cellHeight;
 
   late CellBuilder<T> _cellBuilder;
 
@@ -205,15 +209,15 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
 
     _setDateRange();
 
-    // Initialize current date.
-    _currentDate = (widget.initialMonth ?? DateTime.now()).withoutTime;
-
     _regulateCurrentDate();
 
-    // Initialize page controller to control page actions.
-    _pageController = PageController(initialPage: _currentIndex);
-
     _assignBuilders();
+
+    _currentIndex = _minDate.getMonthDifference(widget.initialMonth??DateTime.now()) - 1;
+    _currentIndexNotifier.addListener(() {
+      widget.onPageChange?.call(_currentDate, _currentIndex);
+      setState(() {});
+    });
   }
 
   @override
@@ -234,8 +238,6 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
         // user adds new events.
         ..addListener(_reloadCallback);
     }
-
-    updateViewDimensions();
   }
 
   @override
@@ -256,93 +258,94 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
         widget.maxMonth != oldWidget.maxMonth) {
       _setDateRange();
       _regulateCurrentDate();
-
-      _pageController.jumpToPage(_currentIndex);
     }
 
     // Update builders and callbacks
     _assignBuilders();
-
-    updateViewDimensions();
   }
 
   @override
   void dispose() {
     _controller?.removeListener(_reloadCallback);
-    _pageController.dispose();
+    _currentIndexNotifier.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeAreaWrapper(
-      option: widget.safeAreaOption,
-      child: SizedBox(
-        width: _width,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final date = _currentDate;
+    final weekDays = date.datesOfWeek(start: widget.startDay);
+    return SliverStickyHeader.builder(
+      // sticky: widget.enableStickyHeaders,
+      // stickOffset: widget.stickyOffset,
+      builder: (context, state) {
+        return Stack(
+          clipBehavior: Clip.none,
           children: [
-            Container(
-              width: _width,
-              child: _headerBuilder(_currentDate),
+            Column(
+              children: [
+                _headerBuilder(date),
+                Row(
+                  children: List.generate(
+                    7,
+                        (index) => Expanded(
+                      child: _weekBuilder(weekDays[index].weekday - 1),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: _onPageChange,
-                itemBuilder: (_, index) {
-                  final date = DateTime(_minDate.year, _minDate.month + index);
-                  final weekDays = date.datesOfWeek(start: widget.startDay);
-
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: _width,
-                        child: Row(
-                          children: List.generate(
-                            7,
-                            (index) => Expanded(
-                              child: SizedBox(
-                                width: _cellWidth,
-                                child:
-                                    _weekBuilder(weekDays[index].weekday - 1),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: SizedBox(
-                            height: _height,
-                            width: _width,
-                            child: _MonthPageBuilder<T>(
-                              key: ValueKey(date.toIso8601String()),
-                              onCellTap: widget.onCellTap,
-                              onDateLongPress: widget.onDateLongPress,
-                              width: _width,
-                              height: _height,
-                              controller: controller,
-                              borderColor: widget.borderColor,
-                              borderSize: widget.borderSize,
-                              cellBuilder: _cellBuilder,
-                              cellRatio: widget.cellAspectRatio,
-                              date: date,
-                              showBorder: widget.showBorder,
-                              startDay: widget.startDay,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-                itemCount: _totalMonths,
+            AnimatedPositioned(
+              left: 0, right: 0, bottom: -2,
+              height: state.isPinned ? 2 : 0,
+              duration: Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
+              child: const CustomPaint(
+                painter: SimpleShadowPainter(
+                  direction: SimpleShadowPainter.down,
+                  shadowOpacity: 0.2,
+                ),
               ),
             ),
           ],
+        );
+      },
+      sliver: SliverToBoxAdapter( // TODO performance: maybe we could build SliverGridView and avoid always laying out all the rows
+        child: Container(
+          color: DividerTheme.of(context).color ?? Theme.of(context).dividerColor, // hack to reduce the impact of space between cells, caused by flutter low fidelity
+          child: PageTransitionSwitcher(
+            reverse: _previousIndex!=null && _previousIndex!>_currentIndex,
+            layoutBuilder: (entries) {
+              return Stack(
+                alignment: Alignment.topCenter,
+                children: entries,
+              );
+            },
+            transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
+              return SharedAxisTransition(
+                animation: primaryAnimation,
+                secondaryAnimation: secondaryAnimation,
+                transitionType: SharedAxisTransitionType.horizontal,
+                fillColor: Theme.of(context).cardColor,
+                child: child,
+              );
+            },
+            child: _MonthPageBuilder<T>(
+              key: ValueKey(date.toIso8601String()),
+              onCellTap: widget.onCellTap,
+              onDateLongPress: widget.onDateLongPress,
+              controller: controller,
+              borderColor: widget.borderColor,
+              borderSize: widget.borderSize,
+              cellBuilder: _cellBuilder,
+              date: date,
+              showBorder: widget.showBorder,
+              startDay: widget.startDay,
+              minWidth: widget.minWidth,
+              expandCells: widget.expandCells,
+              minCellHeight: widget.minCellHeight,
+            ),
+          ),
         ),
       ),
     );
@@ -364,13 +367,6 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
     if (mounted) {
       setState(() {});
     }
-  }
-
-  void updateViewDimensions() {
-    _width = widget.width ?? MediaQuery.of(context).size.width;
-    _cellWidth = _width / 7;
-    _cellHeight = _cellWidth / widget.cellAspectRatio;
-    _height = _cellHeight * 6;
   }
 
   void _assignBuilders() {
@@ -399,14 +395,16 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
   ///
   void _regulateCurrentDate() {
     // make sure that _currentDate is between _minDate and _maxDate.
+    DateTime? newDate;
     if (_currentDate.isBefore(_minDate)) {
-      _currentDate = _minDate;
+      newDate = _minDate;
     } else if (_currentDate.isAfter(_maxDate)) {
-      _currentDate = _maxDate;
+      newDate = _maxDate;
     }
-
-    // Calculate the current index of page view.
-    _currentIndex = _minDate.getMonthDifference(_currentDate) - 1;
+    if (newDate!=null) {
+      // Calculate the current index of page view.
+      _currentIndex = _minDate.getMonthDifference(newDate) - 1;
+    }
   }
 
   /// Sets the minimum and maximum dates for current view.
@@ -428,20 +426,6 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
     _totalMonths = _maxDate.getMonthDifference(_minDate);
   }
 
-  /// Calls when user changes page using gesture or inbuilt methods.
-  void _onPageChange(int value) {
-    if (mounted) {
-      setState(() {
-        _currentDate = DateTime(
-          _currentDate.year,
-          _currentDate.month + (value - _currentIndex),
-        );
-        _currentIndex = value;
-      });
-    }
-    widget.onPageChange?.call(_currentDate, _currentIndex);
-  }
-
   /// Default month view header builder
   Widget _defaultHeaderBuilder(DateTime date) {
     return MonthPageHeader(
@@ -456,10 +440,10 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
         if (selectedDate == null) return;
         jumpToMonth(selectedDate);
       },
-      onPreviousMonth: previousPage,
+      onPreviousMonth: _currentIndex==0 ? null : previousPage,
+      onNextMonth: _currentIndex==_totalMonths-1 ? null : nextPage,
       date: date,
       dateStringBuilder: widget.headerStringBuilder,
-      onNextMonth: nextPage,
       headerStyle: widget.headerStyle,
     );
   }
@@ -478,7 +462,7 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
     return FilledCell<T>(
       date: date,
       shouldHighlight: isToday,
-      backgroundColor: isInMonth ? Constants.white : Constants.offWhite,
+      // backgroundColor: isInMonth ? white : offWhite,
       events: events,
       onTileTap: widget.onEventTap,
       dateStringBuilder: widget.dateStringBuilder,
@@ -491,10 +475,7 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
   /// as [MonthView.pageTransitionDuration] and [MonthView.pageTransitionCurve]
   /// respectively.
   void nextPage({Duration? duration, Curve? curve}) {
-    _pageController.nextPage(
-      duration: duration ?? widget.pageTransitionDuration,
-      curve: curve ?? widget.pageTransitionCurve,
-    );
+    _currentIndex++;
   }
 
   /// Animate to previous page
@@ -503,15 +484,12 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
   /// as [MonthView.pageTransitionDuration] and [MonthView.pageTransitionCurve]
   /// respectively.
   void previousPage({Duration? duration, Curve? curve}) {
-    _pageController.previousPage(
-      duration: duration ?? widget.pageTransitionDuration,
-      curve: curve ?? widget.pageTransitionCurve,
-    );
+    _currentIndex--;
   }
 
   /// Jumps to page number [page]
   void jumpToPage(int page) {
-    _pageController.jumpToPage(page);
+    _currentIndex = page;
   }
 
   /// Animate to page number [page].
@@ -521,9 +499,7 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
   /// respectively.
   Future<void> animateToPage(int page,
       {Duration? duration, Curve? curve}) async {
-    await _pageController.animateToPage(page,
-        duration: duration ?? widget.pageTransitionDuration,
-        curve: curve ?? widget.pageTransitionCurve);
+    _currentIndex = page;
   }
 
   /// Returns current page number.
@@ -534,7 +510,7 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
     if (month.isBefore(_minDate) || month.isAfter(_maxDate)) {
       throw "Invalid date selected.";
     }
-    _pageController.jumpToPage(_minDate.getMonthDifference(month) - 1);
+    _currentIndex = _minDate.getMonthDifference(month) - 1;
   }
 
   /// Animate to page which gives month calendar for [month].
@@ -547,11 +523,7 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
     if (month.isBefore(_minDate) || month.isAfter(_maxDate)) {
       throw "Invalid date selected.";
     }
-    await _pageController.animateToPage(
-      _minDate.getMonthDifference(month) - 1,
-      duration: duration ?? widget.pageTransitionDuration,
-      curve: curve ?? widget.pageTransitionCurve,
-    );
+    _currentIndex = _minDate.getMonthDifference(month) - 1;
   }
 
   /// Returns the current visible date in month view.
@@ -560,73 +532,86 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
 
 /// A single month page.
 class _MonthPageBuilder<T> extends StatelessWidget {
-  final double cellRatio;
   final bool showBorder;
   final double borderSize;
-  final Color borderColor;
+  final Color? borderColor;
   final CellBuilder<T> cellBuilder;
   final DateTime date;
   final EventController<T> controller;
-  final double width;
-  final double height;
   final CellTapCallback<T>? onCellTap;
   final DatePressCallback? onDateLongPress;
   final WeekDays startDay;
+  final double? minWidth;
+  final bool expandCells;
+  final double? minCellHeight;
 
   const _MonthPageBuilder({
     Key? key,
-    required this.cellRatio,
     required this.showBorder,
     required this.borderSize,
     required this.borderColor,
     required this.cellBuilder,
     required this.date,
     required this.controller,
-    required this.width,
-    required this.height,
     required this.onCellTap,
     required this.onDateLongPress,
     required this.startDay,
+    required this.minWidth,
+    required this.expandCells,
+    required this.minCellHeight,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final monthDays = date.datesOfMonths(startDay: startDay);
-    return Container(
-      width: width,
-      height: height,
-      child: GridView.builder(
-        physics: ClampingScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 7,
-          childAspectRatio: cellRatio,
-        ),
-        itemCount: 42,
-        shrinkWrap: true,
-        itemBuilder: (context, index) {
-          final events = controller.getEventsOnDay(monthDays[index]);
-          return GestureDetector(
-            onTap: () => onCellTap?.call(events, monthDays[index]),
-            onLongPress: () => onDateLongPress?.call(monthDays[index]),
-            child: Container(
-              decoration: BoxDecoration(
-                border: showBorder
-                    ? Border.all(
-                        color: borderColor,
+    final month = DateTime(date.year, date.month, 1);
+    final startDiff = month.weekday - 1;
+    final daysInMonth = DateUtils.getDaysInMonth(month.year, month.month);
+    final neededDayCount = startDiff+daysInMonth;
+    final neededWeekCount = ((neededDayCount)/7).ceil();
+    // final neededItemCount = neededWeekCount * 7;
+    return ListView.builder(
+      physics: NeverScrollableScrollPhysics(),
+      itemCount: neededWeekCount,
+      shrinkWrap: true,
+      itemBuilder: (context, week) {
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: List.generate(7, (day) {
+              final index = week*7 + day;
+              final events = controller.getEventsOnDay(monthDays[index]);
+              return Expanded(
+                child: InkWell(
+                  onTap: onCellTap==null ? null
+                      : () => onCellTap?.call(events, monthDays[index]),
+                  onLongPress: onDateLongPress==null ? null
+                      : () => onDateLongPress?.call(monthDays[index]),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: showBorder
+                          ? Border.all(
+                        color: DividerTheme.of(context).color ?? Theme.of(context).dividerColor,
                         width: borderSize,
                       )
-                    : null,
-              ),
-              child: cellBuilder(
-                monthDays[index],
-                events,
-                monthDays[index].compareWithoutTime(DateTime.now()),
-                monthDays[index].month == date.month,
-              ),
-            ),
-          );
-        },
-      ),
+                          : null,
+                    ),
+                    constraints: minCellHeight==null ? null : BoxConstraints(
+                      minHeight: 128,
+                    ),
+                    child: cellBuilder(
+                      monthDays[index],
+                      events,
+                      monthDays[index].compareWithoutTime(DateTime.now()),
+                      monthDays[index].month == date.month,
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        );
+      },
     );
   }
 }

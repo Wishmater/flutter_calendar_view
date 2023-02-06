@@ -11,6 +11,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  animations: ^2.0.3
+  value_layout_builder: any
+  intl: any
 
 dev_dependencies:
   flutter_test:

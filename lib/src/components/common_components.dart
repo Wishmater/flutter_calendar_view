@@ -2,14 +2,14 @@
 // Use of this source code is governed by a MIT-style license
 // that can be found in the LICENSE file.
 
+import 'package:animations/animations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import '../constants.dart';
 import '../style/header_style.dart';
 import '../typedefs.dart';
 
-class CalendarPageHeader extends StatelessWidget {
+class CalendarPageHeader extends StatefulWidget {
   /// When user taps on right arrow.
   final VoidCallback? onNextDay;
 
@@ -33,12 +33,12 @@ class CalendarPageHeader extends StatelessWidget {
   // TODO: Need to remove after next release
   /// background color of header.
   @Deprecated("Use Header Style to provide background")
-  final Color backgroundColor;
+  final Color? backgroundColor;
 
   // TODO: Need to remove after next release
   /// Color of icons at both sides of header.
   @Deprecated("Use Header Style to provide icon color")
-  final Color iconColor;
+  final Color? iconColor;
 
   /// Style for Calendar's header
   final HeaderStyle headerStyle;
@@ -54,66 +54,99 @@ class CalendarPageHeader extends StatelessWidget {
     this.onPreviousDay,
     this.secondaryDate,
     @Deprecated("Use Header Style to provide background")
-        this.backgroundColor = Constants.headerBackground,
+        this.backgroundColor,
     @Deprecated("Use Header Style to provide icon color")
-        this.iconColor = Constants.black,
+        this.iconColor,
     this.headerStyle = const HeaderStyle(),
   }) : super(key: key);
 
   @override
+  State<CalendarPageHeader> createState() => _CalendarPageHeaderState();
+
+}
+
+
+class _CalendarPageHeaderState extends State<CalendarPageHeader> {
+
+  DateTime? previousDate;
+
+  @override
+  void didUpdateWidget(covariant CalendarPageHeader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.date!=oldWidget.date) {
+      previousDate = oldWidget.date;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
-      margin: headerStyle.headerMargin,
-      padding: headerStyle.headerPadding,
+      margin: widget.headerStyle.headerMargin,
+      padding: widget.headerStyle.headerPadding,
       decoration:
           // ignore_for_file: deprecated_member_use_from_same_package
-          headerStyle.decoration ?? BoxDecoration(color: backgroundColor),
+          widget.headerStyle.decoration ?? BoxDecoration(
+              color: widget.backgroundColor ?? Theme.of(context).cardColor),
       clipBehavior: Clip.antiAlias,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          if (headerStyle.leftIconVisible)
-            IconButton(
-              onPressed: onPreviousDay,
-              splashColor: Colors.transparent,
-              focusColor: Colors.transparent,
-              hoverColor: Colors.transparent,
-              highlightColor: Colors.transparent,
-              padding: headerStyle.leftIconPadding,
-              icon: headerStyle.leftIcon ??
-                  Icon(
-                    Icons.chevron_left,
-                    size: 30,
-                    color: iconColor,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.headerStyle.leftIconVisible)
+              IconButton(
+                onPressed: widget.onPreviousDay,
+                padding: widget.headerStyle.leftIconPadding,
+                icon: widget.headerStyle.leftIcon ??
+                    Icon(
+                      Icons.chevron_left,
+                      size: 30,
+                      color: widget.iconColor,
+                    ),
+              ),
+            Expanded(
+              child: PageTransitionSwitcher(
+                reverse: previousDate!=null && previousDate!.isAfter(widget.date),
+                transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
+                  return SharedAxisTransition(
+                    animation: primaryAnimation,
+                    secondaryAnimation: secondaryAnimation,
+                    transitionType: SharedAxisTransitionType.horizontal,
+                    fillColor: Colors.transparent,
+                    child: child,
+                  );
+                },
+                child: InkWell(
+                  key: ValueKey(widget.date),
+                  onTap: widget.onTitleTapped,
+                  child: Container(
+                    constraints: BoxConstraints(minWidth: 256, minHeight: 36),
+                    alignment: Alignment.center,
+                    child: Text(
+                      widget.dateStringBuilder(widget.date, secondaryDate: widget.secondaryDate),
+                      textAlign: widget.headerStyle.titleAlign,
+                      style: widget.headerStyle.headerTextStyle ?? Theme.of(context).textTheme.subtitle1,
+                    ),
                   ),
-            ),
-          Expanded(
-            child: InkWell(
-              onTap: onTitleTapped,
-              child: Text(
-                dateStringBuilder(date, secondaryDate: secondaryDate),
-                textAlign: headerStyle.titleAlign,
-                style: headerStyle.headerTextStyle,
+                ),
               ),
             ),
-          ),
-          if (headerStyle.rightIconVisible)
-            IconButton(
-              onPressed: onNextDay,
-              splashColor: Colors.transparent,
-              focusColor: Colors.transparent,
-              hoverColor: Colors.transparent,
-              highlightColor: Colors.transparent,
-              padding: headerStyle.rightIconPadding,
-              icon: headerStyle.rightIcon ??
-                  Icon(
-                    Icons.chevron_right,
-                    size: 30,
-                    color: iconColor,
-                  ),
-            ),
-        ],
+            if (widget.headerStyle.rightIconVisible)
+              IconButton(
+                onPressed: widget.onNextDay,
+                padding: widget.headerStyle.rightIconPadding,
+                icon: widget.headerStyle.rightIcon ??
+                    Icon(
+                      Icons.chevron_right,
+                      size: 30,
+                      color: widget.iconColor,
+                    ),
+              ),
+          ],
+        ),
       ),
     );
   }
+
 }
