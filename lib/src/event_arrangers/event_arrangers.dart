@@ -28,8 +28,8 @@ abstract class EventArranger<T extends Object?> {
   List<OrganizedCalendarEventData<T>> arrange({
     required List<CalendarEventData<T>> events,
     required double height,
-    required double width,
     required double heightPerMinute,
+    int startingHour = 0,
   });
 }
 
@@ -46,6 +46,9 @@ class OrganizedCalendarEventData<T extends Object?> {
 
   /// Right position where event tile will end.
   final double right;
+
+  /// Columns simultaniously active.
+  final int columns;
 
   /// List of events to display in given tile.
   final List<CalendarEventData<T>> events;
@@ -66,6 +69,7 @@ class OrganizedCalendarEventData<T extends Object?> {
     required this.left,
     required this.right,
     required this.events,
+    required this.columns,
   });
 
   OrganizedCalendarEventData.empty()
@@ -75,7 +79,8 @@ class OrganizedCalendarEventData<T extends Object?> {
         left = 0,
         events = const [],
         top = 0,
-        bottom = 0;
+        bottom = 0,
+        columns = 0;
 
   OrganizedCalendarEventData<T> getWithUpdatedRight(double right) =>
       OrganizedCalendarEventData<T>(
@@ -86,5 +91,6 @@ class OrganizedCalendarEventData<T extends Object?> {
         left: left,
         right: right,
         startDuration: startDuration,
+        columns: columns,
       );
 }

@@ -22,7 +22,11 @@ class RoundedEventTile extends StatelessWidget {
 
   /// Background color of tile.
   /// Default color is [Colors.blue]
-  final Color backgroundColor;
+  final Color? backgroundColor;
+
+  /// Background color of tile.
+  /// Default color is [Colors.blue]
+  final Color? accentColor;
 
   /// If same tile can have multiple events.
   /// In most cases this value will be 1 less than total events.
@@ -52,62 +56,76 @@ class RoundedEventTile extends StatelessWidget {
     this.description = "",
     this.borderRadius = BorderRadius.zero,
     this.totalEvents = 1,
-    this.backgroundColor = Colors.blue,
+    this.backgroundColor,
     this.titleStyle,
     this.descriptionStyle,
+    this.accentColor,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: padding,
       margin: margin,
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: borderRadius,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         children: [
-          if (title.isNotEmpty)
-            Expanded(
-              child: Text(
-                title,
-                style: titleStyle ??
-                    TextStyle(
-                      fontSize: 20,
-                      color: backgroundColor.accent,
-                    ),
-                softWrap: true,
-                overflow: TextOverflow.fade,
-              ),
+          if (accentColor!=null)
+            Container(
+              width: 6,
+              color: accentColor,
             ),
-          if (description.isNotEmpty)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 15.0),
-                child: Text(
-                  description,
-                  style: descriptionStyle ??
-                      TextStyle(
-                        fontSize: 17,
-                        color: backgroundColor.accent.withAlpha(200),
+          Expanded(
+            child: Padding(
+              padding: padding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (title.isNotEmpty)
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: titleStyle ??
+                            TextStyle(
+                              fontSize: 20,
+                              color: backgroundColor?.accent,
+                            ),
+                        softWrap: true,
+                        overflow: TextOverflow.fade,
                       ),
-                ),
+                    ),
+                  if (description.isNotEmpty)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 15.0),
+                        child: Text(
+                          description,
+                          style: descriptionStyle ??
+                              TextStyle(
+                                fontSize: 17,
+                                color: backgroundColor?.accent.withAlpha(200),
+                              ),
+                        ),
+                      ),
+                    ),
+                  if (totalEvents > 1)
+                    Expanded(
+                      child: Text(
+                        "+${totalEvents - 1} more",
+                        style: (descriptionStyle ??
+                                TextStyle(
+                                  color: backgroundColor?.accent.withAlpha(200),
+                                ))
+                            .copyWith(fontSize: 17),
+                      ),
+                    ),
+                ],
               ),
             ),
-          if (totalEvents > 1)
-            Expanded(
-              child: Text(
-                "+${totalEvents - 1} more",
-                style: (descriptionStyle ??
-                        TextStyle(
-                          color: backgroundColor.accent.withAlpha(200),
-                        ))
-                    .copyWith(fontSize: 17),
-              ),
-            ),
+          ),
         ],
       ),
     );
@@ -188,7 +206,7 @@ class DefaultTimeLineMark extends StatelessWidget {
 class FullDayEventView<T> extends StatelessWidget {
   const FullDayEventView({
     Key? key,
-    this.boxConstraints = const BoxConstraints(maxHeight: 100),
+    this.boxConstraints,
     required this.events,
     this.padding,
     this.itemView,
@@ -198,7 +216,7 @@ class FullDayEventView<T> extends StatelessWidget {
   }) : super(key: key);
 
   /// Constraints for view
-  final BoxConstraints boxConstraints;
+  final BoxConstraints? boxConstraints;
 
   /// Define List of Event to display
   final List<CalendarEventData<T>> events;
@@ -213,43 +231,70 @@ class FullDayEventView<T> extends StatelessWidget {
   final TextStyle? titleStyle;
 
   /// Called when user taps on event tile.
-  final TileTapCallback? onEventTap;
+  final TileTapCallback<T>? onEventTap;
 
   /// Defines date for which events will be displayed.
   final DateTime date;
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: boxConstraints,
-      child: ListView.builder(
-        itemCount: events.length,
-        padding: padding,
-        shrinkWrap: true,
-        itemBuilder: (context, index) => InkWell(
-          onTap: () => onEventTap?.call(events[index], date),
-          child: itemView?.call(events[index]) ??
-              Container(
-                margin: const EdgeInsets.all(5.0),
-                padding: const EdgeInsets.all(1.0),
-                height: 24,
-                child: Text(
-                  events[index].title,
-                  style: titleStyle ??
-                      TextStyle(
-                        fontSize: 16,
-                        color: events[index].color.accent,
-                      ),
-                  maxLines: 1,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(5),
-                  color: events[index].color,
-                ),
-                alignment: Alignment.centerLeft,
+    Widget result = ListView.builder(
+      itemCount: events.length,
+      padding: padding,
+      shrinkWrap: true,
+      itemBuilder: (context, index) => itemView?.call(events[index]) ??
+          Container(
+            margin: EdgeInsets.symmetric(vertical: 2.0, horizontal: 3.0),
+            child: Material(
+              color: Color.alphaBlend(
+                events[index].color.withOpacity(0.15),
+                Theme.of(context).cardColor,
               ),
-        ),
-      ),
+              borderRadius: BorderRadius.circular(4.0),
+              clipBehavior: Clip.hardEdge,
+              elevation: 3,
+              child: InkWell(
+                onTap: onEventTap==null ? null : () =>
+                    onEventTap?.call(events[index], date),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        width: 5,
+                        color: events[index].color,
+                      ),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(2, 2, 3, 3),
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            events[index].title,
+                            style: titleStyle ??
+                                TextStyle(
+                                  fontSize: 12,
+                                ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(5),
+              color: events[index].color,
+            ),
+            alignment: Alignment.centerLeft,
+          ),
     );
+    if (boxConstraints!=null) {
+      result = ConstrainedBox(
+        constraints: boxConstraints!,
+        child: result,
+      );
+    }
+    return result;
   }
 }

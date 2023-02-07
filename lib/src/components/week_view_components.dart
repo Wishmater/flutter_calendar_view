@@ -11,7 +11,6 @@ import '../typedefs.dart';
 import 'common_components.dart';
 
 class WeekPageHeader extends CalendarPageHeader {
-  /// A header widget to display on week view.
   const WeekPageHeader({
     Key? key,
     VoidCallback? onNextDay,
@@ -19,8 +18,8 @@ class WeekPageHeader extends CalendarPageHeader {
     VoidCallback? onPreviousDay,
     required DateTime startDate,
     required DateTime endDate,
-    Color iconColor = Constants.black,
-    Color backgroundColor = Constants.headerBackground,
+    Color? iconColor,
+    Color? backgroundColor,
     StringProvider? headerStringBuilder,
     HeaderStyle headerStyle = const HeaderStyle(),
   }) : super(
@@ -37,8 +36,12 @@ class WeekPageHeader extends CalendarPageHeader {
               headerStringBuilder ?? WeekPageHeader._weekStringBuilder,
           headerStyle: headerStyle,
         );
-  static String _weekStringBuilder(DateTime date, {DateTime? secondaryDate}) =>
-      "${date.day} / ${date.month} / ${date.year} to "
-      "${secondaryDate != null ? "${secondaryDate.day} / "
-          "${secondaryDate.month} / ${secondaryDate.year}" : ""}";
+  static String _weekStringBuilder(DateTime date, {DateTime? secondaryDate}) {
+    if (secondaryDate==null || secondaryDate.isAtSameMomentAs(date)) {
+      return "${date.day}/${date.month}/${date.year}";
+    } else {
+      return "${date.day}/${date.month}/${date.year} - "
+          "${secondaryDate.day}/${secondaryDate.month}/${secondaryDate.year}";
+    }
+  }
 }

@@ -107,11 +107,24 @@ class EventController<T extends Object?> extends ChangeNotifier {
     notifyListeners();
   }
 
+  List<CalendarEventData<T>> getEventsStartingOnHour(DateTime date) {
+    return getEventsOnDay(date).where((e)
+        => e.startTime!=null && e.startTime!.hour==date.hour).toList();
+  }
+
+  List<CalendarEventData<T>> getEventsSpanningToHour(DateTime date) {
+    return getEventsOnDay(date).where((e)
+        => e.startTime!=null && e.startTime!.hour<date.hour
+            && e.endTime!.hour>=date.hour).toList();
+  }
+
   /// Returns events on given day.
   ///
   /// To overwrite default behaviour of this function,
   /// provide [_eventFilter] argument in [EventController] constructor.
-  List<CalendarEventData<T>> getEventsOnDay(DateTime date) {
+  List<CalendarEventData<T>> getEventsOnDay(DateTime date,{
+    bool includeFullDayEvents = true,
+  }) {
     if (_eventFilter != null) return _eventFilter!.call(date, this.events);
 
     final events = <CalendarEventData<T>>[];
@@ -129,7 +142,9 @@ class EventController<T extends Object?> extends ChangeNotifier {
       }
     }
 
-    events.addAll(getFullDayEvent(date));
+    if (includeFullDayEvents) {
+      events.addAll(getFullDayEvent(date));
+    }
 
     return events;
   }
@@ -139,7 +154,7 @@ class EventController<T extends Object?> extends ChangeNotifier {
     final events = <CalendarEventData<T>>[];
     for (final event in _calendarData.fullDayEventList) {
       if (dateTime.difference(event.date).inDays >= 0 &&
-          event.endDate.difference(dateTime).inDays > 0) {
+          event.endDate.difference(dateTime).inDays >= 0) {
         events.add(event);
       }
     }
@@ -168,13 +183,16 @@ class EventController<T extends Object?> extends ChangeNotifier {
       }
     } else {
       final date = event.date.withoutTime;
-
-      if (_calendarData.events[date] == null) {
-        _calendarData.events.addAll({
-          date: [event],
-        });
+      if (event.startTime==null && event.endTime==null) {
+        _calendarData.fullDayEventList.add(event);
       } else {
-        _calendarData.events[date]!.add(event);
+        if (_calendarData.events[date] == null) {
+          _calendarData.events.addAll({
+            date: [event],
+          });
+        } else {
+          _calendarData.events[date]!.add(event);
+        }
       }
     }
 

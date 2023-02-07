@@ -5,6 +5,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../calendar_event_data.dart';
 import '../constants.dart';
@@ -18,8 +19,6 @@ import 'event_scroll_notifier.dart';
 
 /// Widget to display tile line according to current time.
 class LiveTimeIndicator extends StatefulWidget {
-  /// Width of indicator
-  final double width;
 
   /// Height of total display area indicator will be displayed
   /// within this height.
@@ -35,15 +34,18 @@ class LiveTimeIndicator extends StatefulWidget {
   /// Defines height occupied by one minute.
   final double heightPerMinute;
 
+  /// in 24hr format
+  final int startingHour;
+
   /// Widget to display tile line according to current time.
-  const LiveTimeIndicator(
-      {Key? key,
-      required this.width,
-      required this.height,
-      required this.timeLineWidth,
-      required this.liveTimeIndicatorSettings,
-      required this.heightPerMinute})
-      : super(key: key);
+  const LiveTimeIndicator({
+    Key? key,
+    required this.height,
+    required this.timeLineWidth,
+    required this.liveTimeIndicatorSettings,
+    required this.startingHour,
+    required this.heightPerMinute,
+  }) : super(key: key);
 
   @override
   _LiveTimeIndicatorState createState() => _LiveTimeIndicatorState();
@@ -81,14 +83,16 @@ class _LiveTimeIndicatorState extends State<LiveTimeIndicator> {
 
   @override
   Widget build(BuildContext context) {
+    var minutes = _currentDate.getTotalMinutes - widget.startingHour*60;
+    if (minutes < 0) minutes = (24-60) + minutes;
     return CustomPaint(
-      size: Size(widget.width, widget.height),
+      size: Size(999999999, widget.height),
       painter: CurrentTimeLinePainter(
         color: widget.liveTimeIndicatorSettings.color,
         height: widget.liveTimeIndicatorSettings.height,
         offset: Offset(
           widget.timeLineWidth + widget.liveTimeIndicatorSettings.offset,
-          _currentDate.getTotalMinutes * widget.heightPerMinute,
+          minutes * widget.heightPerMinute,
         ),
       ),
     );
@@ -114,15 +118,19 @@ class TimeLine extends StatelessWidget {
 
   static DateTime get _date => DateTime.now();
 
+  /// in 24hr format
+  final int startingHour;
+
   /// Time line to display time at left side of day or week view.
-  const TimeLine(
-      {Key? key,
-      required this.timeLineWidth,
-      required this.hourHeight,
-      required this.height,
-      required this.timeLineOffset,
-      required this.timeLineBuilder})
-      : super(key: key);
+  const TimeLine({
+    Key? key,
+    required this.timeLineWidth,
+    required this.hourHeight,
+    required this.height,
+    required this.timeLineOffset,
+    required this.timeLineBuilder,
+    required this.startingHour,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -135,27 +143,31 @@ class TimeLine extends StatelessWidget {
         minHeight: height,
       ),
       child: Stack(
-        children: [
-          for (int i = 1; i < Constants.hoursADay; i++)
-            Positioned(
-              top: hourHeight * i - timeLineOffset,
-              left: 0,
-              right: 0,
-              bottom: height - (hourHeight * (i + 1)) + timeLineOffset,
-              child: Container(
-                height: hourHeight,
-                width: timeLineWidth,
-                child: timeLineBuilder.call(
-                  DateTime(
-                    _date.year,
-                    _date.month,
-                    _date.day,
-                    i,
-                  ),
+        children: List.generate(Constants.hoursADay, (index) {
+          var i = index + startingHour;
+          if (i>24) i-=24;
+          if (index==0) {
+            return SizedBox.shrink();
+          }
+          return Positioned(
+            top: hourHeight * index - timeLineOffset,
+            left: 0,
+            right: 0,
+            bottom: height - (hourHeight * (index + 1)) + timeLineOffset,
+            child: Container(
+              height: hourHeight,
+              width: timeLineWidth,
+              child: timeLineBuilder.call(
+                DateTime(
+                  _date.year,
+                  _date.month,
+                  _date.day,
+                  i,
                 ),
               ),
             ),
-        ],
+          );
+        }),
       ),
     );
   }
@@ -165,9 +177,6 @@ class TimeLine extends StatelessWidget {
 class EventGenerator<T extends Object?> extends StatelessWidget {
   /// Height of display area
   final double height;
-
-  /// width of display area
-  final double width;
 
   /// List of events to display.
   final List<CalendarEventData<T>> events;
@@ -189,11 +198,13 @@ class EventGenerator<T extends Object?> extends StatelessWidget {
 
   final EventScrollConfiguration scrollNotifier;
 
+  /// in 24hr format
+  final int startingHour;
+
   /// A widget that display event tiles in day/week view.
   const EventGenerator({
     Key? key,
     required this.height,
-    required this.width,
     required this.events,
     required this.heightPerMinute,
     required this.eventArranger,
@@ -201,6 +212,7 @@ class EventGenerator<T extends Object?> extends StatelessWidget {
     required this.date,
     required this.onTileTap,
     required this.scrollNotifier,
+    required this.startingHour,
   }) : super(key: key);
 
   /// Arrange events and returns list of [Widget] that displays event
@@ -210,37 +222,57 @@ class EventGenerator<T extends Object?> extends StatelessWidget {
     final events = eventArranger.arrange(
       events: this.events,
       height: height,
-      width: width,
       heightPerMinute: heightPerMinute,
+      startingHour: startingHour,
     );
 
     return List.generate(events.length, (index) {
       return Positioned(
+        left: 0, right: 0,
         top: events[index].top,
         bottom: events[index].bottom,
-        left: events[index].left,
-        right: events[index].right,
-        child: GestureDetector(
-          onTap: () => onTileTap?.call(events[index].events, date),
-          child: Builder(builder: (context) {
-            if (scrollNotifier.shouldScroll &&
-                events[index]
-                    .events
-                    .any((element) => element == scrollNotifier.event)) {
-              _scrollToEvent(context);
-            }
-            return eventTileBuilder(
-              date,
-              events[index].events,
-              Rect.fromLTWH(
-                  events[index].left,
-                  events[index].top,
-                  width - events[index].right - events[index].left,
-                  height - events[index].bottom - events[index].top),
-              events[index].startDuration,
-              events[index].endDuration,
-            );
-          }),
+        child: Row(
+          children: [
+            if (events[index].left > 0)
+              Flexible(flex: events[index].left.round(), child: Container(),),
+            Flexible(
+              flex: (events[index].right-events[index].left).round(),
+              fit: FlexFit.tight,
+              child: Material(
+                color: Color.alphaBlend(
+                  events[index].events.first.color.withOpacity(0.15),
+                  Theme.of(context).cardColor,
+                ),
+                clipBehavior: Clip.hardEdge,
+                borderRadius: BorderRadius.circular(6.0),
+                elevation: 3,
+                child: InkWell(
+                  onTap: () => onTileTap?.call(events[index].events, date),
+                  child: Builder(builder: (context) {
+                    if (scrollNotifier.shouldScroll &&
+                        events[index]
+                            .events
+                            .any((element) => element == scrollNotifier.event)) {
+                      _scrollToEvent(context);
+                    }
+                    return eventTileBuilder(
+                      date,
+                      events[index].events,
+                      Rect.fromLTWH( // boundary is never used
+                          events[index].left,
+                          events[index].top,
+                          events[index].right,
+                          height - events[index].bottom - events[index].top),
+                      events[index].startDuration,
+                      events[index].endDuration,
+                    );
+                  }),
+                ),
+              ),
+            ),
+            if (events[index].columns - events[index].right > 0)
+              Flexible(flex: (events[index].columns - events[index].right).round(), child: Container(),),
+          ],
         ),
       );
     });
@@ -268,12 +300,8 @@ class EventGenerator<T extends Object?> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: height,
-      width: width,
-      child: Stack(
-        children: _generateEvents(context),
-      ),
+    return Stack(
+      children: _generateEvents(context),
     );
   }
 }
@@ -282,9 +310,6 @@ class EventGenerator<T extends Object?> extends StatelessWidget {
 class PressDetector extends StatelessWidget {
   /// Height of display area
   final double height;
-
-  /// width of display area
-  final double width;
 
   /// Defines height of single minute in day/week view page.
   final double heightPerMinute;
@@ -308,16 +333,19 @@ class PressDetector extends StatelessWidget {
   /// where events are not available.
   final MinuteSlotSize minuteSlotSize;
 
+  /// in 24hr format
+  final int startingHour;
+
   /// A widget that display event tiles in day/week view.
   const PressDetector({
     Key? key,
     required this.height,
-    required this.width,
     required this.heightPerMinute,
     required this.date,
     required this.onDateLongPress,
     required this.onDateTap,
     required this.minuteSlotSize,
+    required this.startingHour,
   }) : super(key: key);
 
   @override
@@ -325,42 +353,42 @@ class PressDetector extends StatelessWidget {
     final heightPerSlot = minuteSlotSize.minutes * heightPerMinute;
     final slots = (Constants.hoursADay * 60) ~/ minuteSlotSize.minutes;
 
-    return Container(
-      height: height,
-      width: width,
-      child: Stack(
-        children: [
-          for (int i = 0; i < slots; i++)
-            Positioned(
-              top: heightPerSlot * i,
-              left: 0,
-              right: 0,
-              bottom: height - (heightPerSlot * (i + 1)),
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTap: () => onDateTap?.call(
-                  DateTime(
-                    date.year,
-                    date.month,
-                    date.day,
-                    0,
-                    minuteSlotSize.minutes * i,
-                  ),
+    return Stack(
+      children: List.generate(slots, (i) {
+        var minutes = minuteSlotSize.minutes * i + startingHour * 60;
+        if (minutes > 24*60) minutes -= 24*60;
+        return Positioned(
+          top: heightPerSlot * i,
+          left: 0,
+          right: 0,
+          bottom: height - (heightPerSlot * (i + 1)),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              mouseCursor: SystemMouseCursors.basic,
+              onTap: () => onDateTap?.call(
+                DateTime(
+                  date.year,
+                  date.month,
+                  date.day,
+                  0,
+                  minutes,
                 ),
-                onLongPress: () => onDateLongPress?.call(
-                  DateTime(
-                    date.year,
-                    date.month,
-                    date.day,
-                    0,
-                    minuteSlotSize.minutes * i,
-                  ),
-                ),
-                child: SizedBox(width: width, height: heightPerSlot),
               ),
+              onLongPress: () => onDateLongPress?.call(
+                DateTime(
+                  date.year,
+                  date.month,
+                  date.day,
+                  0,
+                  minutes,
+                ),
+              ),
+              child: SizedBox(height: heightPerSlot),
             ),
-        ],
-      ),
+          ),
+        );
+      }),
     );
   }
 }

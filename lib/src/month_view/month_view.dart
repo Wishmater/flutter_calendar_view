@@ -149,7 +149,7 @@ class MonthView<T extends Object?> extends StatefulWidget {
     this.maxMonth,
     this.controller,
     this.initialMonth,
-    this.borderSize = 1,
+    this.borderSize = 0.5,
     this.headerBuilder,
     this.weekDayBuilder,
     this.pageTransitionDuration = const Duration(milliseconds: 300),
@@ -163,7 +163,7 @@ class MonthView<T extends Object?> extends StatefulWidget {
     this.dateStringBuilder,
     this.weekDayStringBuilder,
     this.headerStyle = const HeaderStyle(),
-    this.minWidth = 800,
+    this.minWidth = 848,
     this.expandCells = true,
     this.minCellHeight = 128,
   }) : super(key: key);
@@ -279,35 +279,38 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
       // sticky: widget.enableStickyHeaders,
       // stickOffset: widget.stickyOffset,
       builder: (context, state) {
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Column(
-              children: [
-                _headerBuilder(date),
-                Row(
-                  children: List.generate(
-                    7,
-                        (index) => Expanded(
-                      child: _weekBuilder(weekDays[index].weekday - 1),
+        return Container(
+          color: Theme.of(context).cardColor,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Column(
+                children: [
+                  _headerBuilder(date),
+                  Row(
+                    children: List.generate(
+                      7,
+                          (index) => Expanded(
+                        child: _weekBuilder(weekDays[index].weekday - 1),
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            AnimatedPositioned(
-              left: 0, right: 0, bottom: -2,
-              height: state.isPinned ? 2 : 0,
-              duration: Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic,
-              child: const CustomPaint(
-                painter: SimpleShadowPainter(
-                  direction: SimpleShadowPainter.down,
-                  shadowOpacity: 0.2,
+                ],
+              ),
+              AnimatedPositioned(
+                left: 0, right: 0, bottom: -2,
+                height: state.isPinned ? 2 : 0,
+                duration: Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                child: const CustomPaint(
+                  painter: SimpleShadowPainter(
+                    direction: SimpleShadowPainter.down,
+                    shadowOpacity: 0.2,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
       sliver: SliverToBoxAdapter( // TODO performance: maybe we could build SliverGridView and avoid always laying out all the rows
@@ -453,6 +456,7 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
     return WeekDayTile(
       dayIndex: index,
       weekDayStringBuilder: widget.weekDayStringBuilder,
+      displayBorder: false,
     );
   }
 
@@ -466,6 +470,7 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
       events: events,
       onTileTap: widget.onEventTap,
       dateStringBuilder: widget.dateStringBuilder,
+      isInMonth: isInMonth,
     );
   }
 
@@ -582,28 +587,31 @@ class _MonthPageBuilder<T> extends StatelessWidget {
               final index = week*7 + day;
               final events = controller.getEventsOnDay(monthDays[index]);
               return Expanded(
-                child: InkWell(
-                  onTap: onCellTap==null ? null
-                      : () => onCellTap?.call(events, monthDays[index]),
-                  onLongPress: onDateLongPress==null ? null
-                      : () => onDateLongPress?.call(monthDays[index]),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: showBorder
-                          ? Border.all(
-                        color: DividerTheme.of(context).color ?? Theme.of(context).dividerColor,
-                        width: borderSize,
-                      )
-                          : null,
-                    ),
-                    constraints: minCellHeight==null ? null : BoxConstraints(
-                      minHeight: 128,
-                    ),
-                    child: cellBuilder(
-                      monthDays[index],
-                      events,
-                      monthDays[index].compareWithoutTime(DateTime.now()),
-                      monthDays[index].month == date.month,
+                child: Material(
+                  color: Theme.of(context).cardColor,
+                  child: InkWell(
+                    onTap: onCellTap==null ? null
+                        : () => onCellTap?.call(events, monthDays[index]),
+                    onLongPress: onDateLongPress==null ? null
+                        : () => onDateLongPress?.call(monthDays[index]),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: showBorder
+                            ? Border.all(
+                          color: DividerTheme.of(context).color ?? Theme.of(context).dividerColor,
+                          width: borderSize,
+                        )
+                            : null,
+                      ),
+                      constraints: minCellHeight==null ? null : BoxConstraints(
+                        minHeight: 128,
+                      ),
+                      child: cellBuilder(
+                        monthDays[index],
+                        events,
+                        monthDays[index].compareWithoutTime(DateTime.now()),
+                        monthDays[index].month == date.month,
+                      ),
                     ),
                   ),
                 ),

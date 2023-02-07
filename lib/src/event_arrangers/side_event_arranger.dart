@@ -13,14 +13,14 @@ class SideEventArranger<T extends Object?> extends EventArranger<T> {
   List<OrganizedCalendarEventData<T>> arrange({
     required List<CalendarEventData<T>> events,
     required double height,
-    required double width,
     required double heightPerMinute,
+    int startingHour = 0,
   }) {
     final mergedEvents = MergeEventArranger<T>().arrange(
       events: events,
       height: height,
-      width: width,
       heightPerMinute: heightPerMinute,
+      startingHour: startingHour,
     );
 
     final arrangedEvents = <OrganizedCalendarEventData<T>>[];
@@ -63,8 +63,6 @@ class SideEventArranger<T extends Object?> extends EventArranger<T> {
         }
       }
 
-      final slotWidth = width / column;
-
       for (final sideEvent in sideEventData) {
         if (sideEvent.event.startTime == null ||
             sideEvent.event.endTime == null) {
@@ -82,15 +80,24 @@ class SideEventArranger<T extends Object?> extends EventArranger<T> {
 
         final startTime = sideEvent.event.startTime!;
         final endTime = sideEvent.event.endTime!;
+        var eventStart = startTime.getTotalMinutes;
+        var eventEnd = endTime.getTotalMinutes;
+        eventStart -= startingHour*60;
+        eventEnd -= startingHour*60;
+        if (eventStart<0) eventStart+=24*60;
+        if (eventEnd<0) eventEnd+=24*60;
+        final top = eventStart * heightPerMinute;
+        final bottom = height - eventEnd * heightPerMinute;
 
         arrangedEvents.add(OrganizedCalendarEventData<T>(
-          left: slotWidth * (sideEvent.column - 1),
-          right: slotWidth * (column - sideEvent.column),
-          top: startTime.getTotalMinutes * heightPerMinute,
-          bottom: height - endTime.getTotalMinutes * heightPerMinute,
+          left: sideEvent.column - 1,
+          right: sideEvent.column.toDouble(),
+          top: top,
+          bottom: bottom,
           startDuration: startTime,
           endDuration: endTime,
           events: [sideEvent.event],
+          columns: column,
         ));
       }
     }
@@ -108,3 +115,4 @@ class _SideEventData<T> {
     required this.event,
   });
 }
+

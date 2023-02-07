@@ -125,62 +125,76 @@ class FilledCell<T extends Object?> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = this.backgroundColor ?? Theme.of(context).cardColor;
+    // final backgroundColor = this.backgroundColor ?? Theme.of(context).cardColor;
     final highlightColor = this.highlightColor ?? Theme.of(context).splashColor.withOpacity(1);
     final titleColor = shouldHighlight
         ? highlightedTitleColor
             ?? (ThemeData.estimateBrightnessForColor(highlightColor)==Brightness.light
                 ? Colors.black : Colors.white)
         : this.titleColor ?? Theme.of(context).textTheme.bodyText1!.color!;
-    return Material(
-      color: backgroundColor,
-      child: Column(
-        children: [
-          SizedBox(
-            height: 5.0,
-          ),
-          CircleAvatar(
-            radius: highlightRadius,
-            backgroundColor:
-                shouldHighlight ? highlightColor : Colors.transparent,
-            child: Text(
-              dateStringBuilder?.call(date) ?? "${date.day}",
-              style: TextStyle(
-                color: shouldHighlight
-                    ? titleColor
-                    : isInMonth
-                        ? titleColor
-                        : titleColor.withOpacity(0.4),
-                fontSize: 12,
-              ),
+    return Column(
+      children: [
+        SizedBox(
+          height: 5.0,
+        ),
+        CircleAvatar(
+          radius: highlightRadius,
+          backgroundColor:
+              shouldHighlight ? highlightColor : Colors.transparent,
+          child: Text(
+            dateStringBuilder?.call(date) ?? "${date.day}",
+            style: TextStyle(
+              color: shouldHighlight
+                  ? titleColor
+                  : isInMonth
+                      ? titleColor
+                      : titleColor.withOpacity(0.4),
+              fontSize: 12,
             ),
           ),
-          if (events.isNotEmpty)
-            Container(
-              margin: EdgeInsets.only(top: 5.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(
-                  events.length,
-                  (index) => InkWell(
-                    onTap: onTileTap==null ? null : () =>
-                        onTileTap?.call(events[index], events[index].date),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: events[index].color,
-                        borderRadius: BorderRadius.circular(4.0),
-                      ),
-                      margin: EdgeInsets.symmetric(
-                          vertical: 2.0, horizontal: 3.0),
-                      padding: const EdgeInsets.all(2.0),
-                      alignment: Alignment.center,
-                      child: Text(
-                        events[index].title,
-                        overflow: TextOverflow.clip,
-                        // maxLines: 1,
-                        style: TextStyle(
-                          color: events[index].color.accent,
-                          fontSize: 12,
+        ),
+        if (events.isNotEmpty)
+          Container(
+            margin: EdgeInsets.only(top: 5.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(
+                events.length,
+                (index) => Container(
+                  margin: EdgeInsets.symmetric(vertical: 2.0, horizontal: 3.0),
+                  child: Material(
+                    color: Color.alphaBlend(
+                      events[index].color.withOpacity(0.15),
+                      Theme.of(context).cardColor,
+                    ),
+                    borderRadius: BorderRadius.circular(4.0),
+                    clipBehavior: Clip.hardEdge,
+                    elevation: 3,
+                    child: InkWell(
+                      onTap: onTileTap==null ? null : () =>
+                          onTileTap?.call(events[index], events[index].date),
+                      child: IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
+                              width: 5,
+                              color: events[index].color,
+                            ),
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.fromLTRB(2, 2, 3, 3),
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  events[index].title,
+                                  overflow: TextOverflow.clip,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -188,8 +202,8 @@ class FilledCell<T extends Object?> extends StatelessWidget {
                 ),
               ),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }
@@ -255,17 +269,19 @@ class WeekDayTile extends StatelessWidget {
     return Container(
       alignment: Alignment.center,
       margin: EdgeInsets.zero,
-      padding: EdgeInsets.symmetric(vertical: 10.0),
+      padding: EdgeInsets.only(bottom: 10.0),
       decoration: BoxDecoration(
         color: backgroundColor ?? Theme.of(context).cardColor,
-        border: Border.all(
+        border: !displayBorder ? null : Border.all(
           color: DividerTheme.of(context).color ?? Theme.of(context).dividerColor,
-          width: displayBorder ? 0.5 : 0,
+          width: 0.5,
         ),
       ),
       child: Text(
         weekDayStringBuilder?.call(dayIndex) ?? Constants.weekTitles[dayIndex],
-        style: textStyle ?? Theme.of(context).textTheme.subtitle1,
+        style: textStyle ?? Theme.of(context).textTheme.subtitle1!.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

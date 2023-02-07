@@ -147,13 +147,13 @@ class InternalDayViewPage<T extends Object?> extends StatelessWidget {
                       ),
                     ),
                     PressDetector(
-                      width: width,
                       height: height,
                       heightPerMinute: heightPerMinute,
                       date: date,
                       onDateTap: onDateTap,
                       onDateLongPress: onDateLongPress,
                       minuteSlotSize: minuteSlotSize,
+                      startingHour: 0, // TODO starting hour
                     ),
                     Align(
                       alignment: Alignment.centerRight,
@@ -166,10 +166,7 @@ class InternalDayViewPage<T extends Object?> extends StatelessWidget {
                         heightPerMinute: heightPerMinute,
                         eventTileBuilder: eventTileBuilder,
                         scrollNotifier: scrollNotifier,
-                        width: width -
-                            timeLineWidth -
-                            hourIndicatorSettings.offset -
-                            verticalLineOffset,
+                        startingHour: 0, // TODO starting hour
                       ),
                     ),
                     TimeLine(
@@ -179,15 +176,16 @@ class InternalDayViewPage<T extends Object?> extends StatelessWidget {
                       timeLineOffset: timeLineOffset,
                       timeLineWidth: timeLineWidth,
                       key: ValueKey(heightPerMinute),
+                      startingHour: 0, // TODO starting hour
                     ),
                     if (showLiveLine && liveTimeIndicatorSettings.height > 0)
                       IgnorePointer(
                         child: LiveTimeIndicator(
                           liveTimeIndicatorSettings: liveTimeIndicatorSettings,
-                          width: width,
                           height: height,
                           heightPerMinute: heightPerMinute,
                           timeLineWidth: timeLineWidth,
+                          startingHour: 0, // TODO starting hour
                         ),
                       ),
                   ],

@@ -15,8 +15,8 @@ class MergeEventArranger<T extends Object?> extends EventArranger<T> {
   List<OrganizedCalendarEventData<T>> arrange({
     required List<CalendarEventData<T>> events,
     required double height,
-    required double width,
     required double heightPerMinute,
+    int startingHour = 0,
   }) {
     final arrangedEvents = <OrganizedCalendarEventData<T>>[];
 
@@ -41,8 +41,12 @@ class MergeEventArranger<T extends Object?> extends EventArranger<T> {
       final startTime = event.startTime!;
       final endTime = event.endTime!;
 
-      final eventStart = startTime.getTotalMinutes;
-      final eventEnd = endTime.getTotalMinutes;
+      var eventStart = startTime.getTotalMinutes;
+      var eventEnd = endTime.getTotalMinutes;
+      eventStart -= startingHour*60;
+      eventEnd -= startingHour*60;
+      if (eventStart<0) eventStart+=24*60;
+      if (eventEnd<0) eventEnd+=24*60;
 
       final arrangeEventLen = arrangedEvents.length;
 
@@ -65,20 +69,45 @@ class MergeEventArranger<T extends Object?> extends EventArranger<T> {
       }
 
       if (eventIndex == -1) {
+
         final top = eventStart * heightPerMinute;
         final bottom = height - eventEnd * heightPerMinute;
+        if (eventStart < eventEnd) {
+          arrangedEvents.add(OrganizedCalendarEventData<T>(
+            top: top,
+            bottom: bottom,
+            left: 0,
+            right: 1,
+            columns: 1,
+            startDuration: startTime.copyFromMinutes(eventStart),
+            endDuration: endTime.copyFromMinutes(eventEnd),
+            events: [event],
+          ));
+        } else {
+          arrangedEvents.addAll([
+            OrganizedCalendarEventData<T>(
+              top: top,
+              bottom: 0,
+              left: 0,
+              right: 1,
+              columns: 1,
+              startDuration: startTime.copyFromMinutes(eventStart),
+              endDuration: endTime.copyFromMinutes(eventEnd),
+              events: [event],
+            ),
+            OrganizedCalendarEventData<T>(
+              top: 0,
+              bottom: bottom,
+              left: 0,
+              right: 1,
+              columns: 1,
+              startDuration: startTime.copyFromMinutes(eventStart),
+              endDuration: endTime.copyFromMinutes(eventEnd),
+              events: [event],
+            ),
+          ]);
+        }
 
-        final newEvent = OrganizedCalendarEventData<T>(
-          top: top,
-          bottom: bottom,
-          left: 0,
-          right: 0,
-          startDuration: startTime.copyFromMinutes(eventStart),
-          endDuration: endTime.copyFromMinutes(eventEnd),
-          events: [event],
-        );
-
-        arrangedEvents.add(newEvent);
       } else {
         final arrangedEventData = arrangedEvents[eventIndex];
 
@@ -91,20 +120,44 @@ class MergeEventArranger<T extends Object?> extends EventArranger<T> {
 
         final top = startDuration * heightPerMinute;
         final bottom = height - endDuration * heightPerMinute;
+        if (startDuration < endDuration) {
+          arrangedEvents.add(OrganizedCalendarEventData<T>(
+            top: top,
+            bottom: bottom,
+            left: 0,
+            right: 1,
+            columns: 1,
+            startDuration:
+            arrangedEventData.startDuration.copyFromMinutes(startDuration),
+            endDuration:
+            arrangedEventData.endDuration.copyFromMinutes(endDuration),
+            events: arrangedEventData.events..add(event),
+          ));
+        } else {
+          arrangedEvents.addAll([
+            OrganizedCalendarEventData<T>(
+              top: top,
+              bottom: 0,
+              left: 0,
+              right: 1,
+              columns: 1,
+              startDuration: startTime.copyFromMinutes(eventStart),
+              endDuration: endTime.copyFromMinutes(eventEnd),
+              events: [event],
+            ),
+            OrganizedCalendarEventData<T>(
+              top: 0,
+              bottom: bottom,
+              left: 0,
+              right: 1,
+              columns: 1,
+              startDuration: startTime.copyFromMinutes(eventStart),
+              endDuration: endTime.copyFromMinutes(eventEnd),
+              events: [event],
+            ),
+          ]);
+        }
 
-        final newEvent = OrganizedCalendarEventData<T>(
-          top: top,
-          bottom: bottom,
-          left: 0,
-          right: 0,
-          startDuration:
-              arrangedEventData.startDuration.copyFromMinutes(startDuration),
-          endDuration:
-              arrangedEventData.endDuration.copyFromMinutes(endDuration),
-          events: arrangedEventData.events..add(event),
-        );
-
-        arrangedEvents[eventIndex] = newEvent;
       }
     }
 
