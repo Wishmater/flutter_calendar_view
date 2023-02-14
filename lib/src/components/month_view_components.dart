@@ -185,12 +185,28 @@ class FilledCell<T extends Object?> extends StatelessWidget {
                               child: Container(
                                 padding: const EdgeInsets.fromLTRB(2, 2, 3, 3),
                                 alignment: Alignment.centerLeft,
-                                child: Text(
-                                  events[index].title,
-                                  overflow: TextOverflow.clip,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                  ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (events[index].title.isNotEmpty)
+                                      Text(
+                                        events[index].title,
+                                        overflow: TextOverflow.clip,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    if (events[index].description.isNotEmpty)
+                                      Text(
+                                        events[index].description,
+                                        overflow: TextOverflow.clip,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
                             ),

@@ -13,7 +13,7 @@ class WeekViewWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return WeekView<Event>(
       key: state,
-      width: width,
+      // width: width,
     );
   }
 }

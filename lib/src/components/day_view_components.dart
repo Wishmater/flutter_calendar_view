@@ -80,13 +80,15 @@ class RoundedEventTile extends StatelessWidget {
           Expanded(
             child: Padding(
               padding: padding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (title.isNotEmpty)
-                    Expanded(
-                      child: Text(
+              child: OverflowBox(
+                alignment: Alignment.topCenter,
+                maxHeight: double.infinity,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (title.isNotEmpty)
+                      Text(
                         title,
                         style: titleStyle ??
                             TextStyle(
@@ -96,10 +98,8 @@ class RoundedEventTile extends StatelessWidget {
                         softWrap: true,
                         overflow: TextOverflow.fade,
                       ),
-                    ),
-                  if (description.isNotEmpty)
-                    Expanded(
-                      child: Padding(
+                    if (description.isNotEmpty)
+                      Padding(
                         padding: const EdgeInsets.only(bottom: 15.0),
                         child: Text(
                           description,
@@ -110,10 +110,8 @@ class RoundedEventTile extends StatelessWidget {
                               ),
                         ),
                       ),
-                    ),
-                  if (totalEvents > 1)
-                    Expanded(
-                      child: Text(
+                    if (totalEvents > 1)
+                      Text(
                         "+${totalEvents - 1} more",
                         style: (descriptionStyle ??
                                 TextStyle(
@@ -121,8 +119,8 @@ class RoundedEventTile extends StatelessWidget {
                                 ))
                             .copyWith(fontSize: 17),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

@@ -4,10 +4,14 @@
 
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
+import 'dart:math';
+import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 
 import '../../calendar_view.dart';
 import '../../util/custom_painters.dart';
 import '../../util/my_sliver_sticky_header.dart';
+import '../../util/notification_relayer.dart';
+import '../../util/overflow_scroll.dart';
 import '../calendar_constants.dart';
 import '../calendar_controller_provider.dart';
 import '../calendar_event_data.dart';
@@ -201,9 +205,17 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
 
   late VoidCallback _reloadCallback;
 
+  late final overflowScrollControllerGroup;
+  late final overflowScrollController1;
+  late final overflowScrollController2;
+
   @override
   void initState() {
     super.initState();
+
+    overflowScrollControllerGroup = LinkedScrollControllerGroup();
+    overflowScrollController1 = overflowScrollControllerGroup.addAndGet();
+    overflowScrollController2 = overflowScrollControllerGroup.addAndGet();
 
     _reloadCallback = _reload;
 
@@ -275,82 +287,174 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
   Widget build(BuildContext context) {
     final date = _currentDate;
     final weekDays = date.datesOfWeek(start: widget.startDay);
+    final overflowRelayController = NotificationRelayController(
+          (n) => n is ScrollNotification || n is ScrollMetricsNotification,
+    );
+    final key = ValueKey(date.toIso8601String());
+    final resultBuilder = (context) => _MonthPageBuilder<T>(
+      key: key,
+      onCellTap: widget.onCellTap,
+      onDateLongPress: widget.onDateLongPress,
+      controller: controller,
+      borderColor: widget.borderColor,
+      borderSize: widget.borderSize,
+      cellBuilder: _cellBuilder,
+      date: date,
+      showBorder: widget.showBorder,
+      startDay: widget.startDay,
+      minWidth: widget.minWidth,
+      expandCells: widget.expandCells,
+      minCellHeight: widget.minCellHeight,
+    );
+    Widget result;
+    if (widget.minWidth!=null) {
+      result = NotificationRelayListener(
+        key: key,
+        consumeRelayedNotifications: true,
+        controller: overflowRelayController,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return OverflowScroll(
+                scrollController: overflowScrollController1,
+                autoscrollSpeed: null,
+                consumeScrollNotifications: false,
+                opacityGradientSize: 0,
+                child: SizedBox(
+                  width: max(widget.minWidth!, constraints.maxWidth),
+                  child: resultBuilder(context),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    } else {
+      result = resultBuilder(context);
+    }
+    result = _buildHorizontalSwipeGestureDetector(context, result);
+    result = SliverToBoxAdapter( // TODO performance: maybe we could build SliverGridView and avoid always laying out all the rows
+      child: Container(
+        color: DividerTheme.of(context).color ?? Theme.of(context).dividerColor, // hack to reduce the impact of space between cells, caused by flutter low fidelity
+        child: PageTransitionSwitcher(
+          reverse: _previousIndex!=null && _previousIndex!>_currentIndex,
+          layoutBuilder: (entries) {
+            return Stack(
+              alignment: Alignment.topCenter,
+              children: entries,
+            );
+          },
+          transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
+            return SharedAxisTransition(
+              animation: primaryAnimation,
+              secondaryAnimation: secondaryAnimation,
+              transitionType: SharedAxisTransitionType.horizontal,
+              fillColor: Theme.of(context).cardColor,
+              child: child,
+            );
+          },
+          child: result,
+        ),
+      ),
+    );
+    if (widget.minWidth!=null) {
+      result = SliverStickyHeader(
+        footer: true,
+        stickOffset: 12,
+        header: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < widget.minWidth!) {
+              return Scrollbar(
+                controller: overflowScrollController1,
+                child: SizedBox(
+                  height: 12,
+                  child: NotificationRelayer(
+                    controller: overflowRelayController,
+                    child: Container(),
+                  ),
+                ),
+              );
+            } else {
+              return SizedBox.shrink();
+            }
+          },
+        ),
+        sliver: result,
+      );
+    }
+    final weekdays = Row(
+      children: List.generate(
+        7,
+            (index) => Expanded(
+          child: _weekBuilder(weekDays[index].weekday - 1),
+        ),
+      ),
+    );
     return SliverStickyHeader.builder(
       // sticky: widget.enableStickyHeaders,
       // stickOffset: widget.stickyOffset,
       builder: (context, state) {
-        return Container(
-          color: Theme.of(context).cardColor,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Column(
-                children: [
-                  _headerBuilder(date),
-                  Row(
-                    children: List.generate(
-                      7,
-                          (index) => Expanded(
-                        child: _weekBuilder(weekDays[index].weekday - 1),
+        return _buildHorizontalSwipeGestureDetector(context,
+          Container(
+            color: Theme.of(context).cardColor,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Column(
+                  children: [
+                    _headerBuilder(date),
+                    if (widget.minWidth==null)
+                      weekdays
+                    else
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          return OverflowScroll(
+                            scrollController: overflowScrollController2,
+                            autoscrollSpeed: null,
+                            consumeScrollNotifications: false,
+                            opacityGradientSize: 0,
+                            child: SizedBox(
+                              width: max(widget.minWidth!, constraints.maxWidth),
+                              child: weekdays,
+                            ),
+                          );
+                        },
                       ),
+                  ],
+                ),
+                AnimatedPositioned(
+                  left: 0, right: 0, bottom: -2,
+                  height: state.isPinned ? 2 : 0,
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
+                  child: const CustomPaint(
+                    painter: SimpleShadowPainter(
+                      direction: SimpleShadowPainter.down,
+                      shadowOpacity: 0.2,
                     ),
                   ),
-                ],
-              ),
-              AnimatedPositioned(
-                left: 0, right: 0, bottom: -2,
-                height: state.isPinned ? 2 : 0,
-                duration: Duration(milliseconds: 300),
-                curve: Curves.easeOutCubic,
-                child: const CustomPaint(
-                  painter: SimpleShadowPainter(
-                    direction: SimpleShadowPainter.down,
-                    shadowOpacity: 0.2,
-                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
-      sliver: SliverToBoxAdapter( // TODO performance: maybe we could build SliverGridView and avoid always laying out all the rows
-        child: Container(
-          color: DividerTheme.of(context).color ?? Theme.of(context).dividerColor, // hack to reduce the impact of space between cells, caused by flutter low fidelity
-          child: PageTransitionSwitcher(
-            reverse: _previousIndex!=null && _previousIndex!>_currentIndex,
-            layoutBuilder: (entries) {
-              return Stack(
-                alignment: Alignment.topCenter,
-                children: entries,
-              );
-            },
-            transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
-              return SharedAxisTransition(
-                animation: primaryAnimation,
-                secondaryAnimation: secondaryAnimation,
-                transitionType: SharedAxisTransitionType.horizontal,
-                fillColor: Theme.of(context).cardColor,
-                child: child,
-              );
-            },
-            child: _MonthPageBuilder<T>(
-              key: ValueKey(date.toIso8601String()),
-              onCellTap: widget.onCellTap,
-              onDateLongPress: widget.onDateLongPress,
-              controller: controller,
-              borderColor: widget.borderColor,
-              borderSize: widget.borderSize,
-              cellBuilder: _cellBuilder,
-              date: date,
-              showBorder: widget.showBorder,
-              startDay: widget.startDay,
-              minWidth: widget.minWidth,
-              expandCells: widget.expandCells,
-              minCellHeight: widget.minCellHeight,
-            ),
-          ),
-        ),
-      ),
+      sliver: result,
+    );
+  }
+
+  Widget _buildHorizontalSwipeGestureDetector(BuildContext context, Widget child) {
+    return GestureDetector(
+      key: child.key,
+      onHorizontalDragEnd: (DragEndDetails details) {
+        if (details.primaryVelocity!=null && details.primaryVelocity! > 0) {
+          previousPage(); // User swiped Left
+        } else if (details.primaryVelocity!=null && details.primaryVelocity! < 0) {
+          nextPage(); // User swiped Right
+        }
+      },
+      child: child,
     );
   }
 

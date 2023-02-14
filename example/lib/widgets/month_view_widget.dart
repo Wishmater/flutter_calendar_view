@@ -17,7 +17,7 @@ class MonthViewWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return MonthView<Event>(
       key: state,
-      width: width,
+      // width: width,
     );
   }
 }

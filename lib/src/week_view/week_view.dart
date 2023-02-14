@@ -4,9 +4,13 @@
 
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
+import 'dart:math';
+import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 
 import '../../util/custom_painters.dart';
 import '../../util/my_sliver_sticky_header.dart';
+import '../../util/notification_relayer.dart';
+import '../../util/overflow_scroll.dart';
 import '../calendar_constants.dart';
 import '../calendar_controller_provider.dart';
 import '../calendar_event_data.dart';
@@ -179,7 +183,7 @@ class WeekView<T extends Object?> extends StatefulWidget {
 
   /// If not null and the width of context is less than minWidth,
   /// a horizontal scrollable will be created
-  final double? minWidth;
+  final double? minWidthPerDay;
 
   /// Main widget for week view.
   const WeekView({
@@ -220,7 +224,7 @@ class WeekView<T extends Object?> extends StatefulWidget {
     this.safeAreaOption = const SafeAreaOption(),
     this.fullDayEventBuilder,
     this.startingHour = 7,
-    this.minWidth = 848,
+    this.minWidthPerDay = 96,
   })  : assert((timeLineOffset) >= 0,
             "timeLineOffset must be greater than or equal to 0"),
         assert(timeLineWidth > 0,
@@ -279,9 +283,17 @@ class WeekViewState<T extends Object?> extends State<WeekView<T>> {
 
   final _scrollConfiguration = EventScrollConfiguration();
 
+  late final overflowScrollControllerGroup;
+  late final overflowScrollController1;
+  late final overflowScrollController2;
+
   @override
   void initState() {
     super.initState();
+
+    overflowScrollControllerGroup = LinkedScrollControllerGroup();
+    overflowScrollController1 = overflowScrollControllerGroup.addAndGet();
+    overflowScrollController2 = overflowScrollControllerGroup.addAndGet();
 
     _reloadCallback = _reload;
 
@@ -373,111 +385,206 @@ class WeekViewState<T extends Object?> extends State<WeekView<T>> {
     final filteredDates = _weekDays==null
         ? dates
         : InternalWeekViewPage.filteredDate(dates, _weekDays!);
+    final overflowRelayController = NotificationRelayController(
+          (n) => n is ScrollNotification || n is ScrollMetricsNotification,
+    );
+    final key = ValueKey(_hourHeight.toString() + dates[0].toString());
+    final resultBuilder = (context) => ValueListenableBuilder(
+      valueListenable: _scrollConfiguration,
+      key: key,
+      builder: (_, __, ___) => InternalWeekViewPage<T>(
+        height: _height,
+        weekDayBuilder: _weekDayBuilder,
+        weekNumberBuilder: _weekNumberBuilder,
+        liveTimeIndicatorSettings: _liveTimeIndicatorSettings,
+        timeLineBuilder: _timeLineBuilder,
+        onTileTap: widget.onEventTap,
+        onDateLongPress: widget.onDateLongPress,
+        onDateTap: widget.onDateTap,
+        eventTileBuilder: _eventTileBuilder,
+        heightPerMinute: widget.heightPerMinute,
+        hourIndicatorSettings: _hourIndicatorSettings,
+        dates: dates,
+        showLiveLine: widget.showLiveTimeLineInAllDays ||
+            _showLiveTimeIndicator(dates),
+        timeLineOffset: widget.timeLineOffset,
+        timeLineWidth: _timeLineWidth,
+        verticalLineOffset: 0,
+        showVerticalLine: true,
+        controller: controller,
+        hourHeight: _hourHeight,
+        eventArranger: _eventArranger,
+        weekDays: _weekDays,
+        minuteSlotSize: widget.minuteSlotSize,
+        scrollConfiguration: _scrollConfiguration,
+        fullDayEventBuilder: _fullDayEventBuilder,
+        startingHour: widget.startingHour,
+      ),
+    );
+    Widget result;
+    final minWidth = widget.minWidthPerDay==null
+        ? null
+        : widget.timeLineWidth + widget.minWidthPerDay!*(widget.weekDays?.length??7);
+    if (minWidth!=null) {
+      result = NotificationRelayListener(
+        key: key,
+        consumeRelayedNotifications: true,
+        controller: overflowRelayController,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return OverflowScroll(
+                scrollController: overflowScrollController1,
+                autoscrollSpeed: null,
+                consumeScrollNotifications: false,
+                opacityGradientSize: 0,
+                child: SizedBox(
+                  width: max(minWidth, constraints.maxWidth),
+                  child: resultBuilder(context),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    } else {
+      result = resultBuilder(context);
+    }
+    result = _buildHorizontalSwipeGestureDetector(context, result);
+    result = SliverToBoxAdapter( // TODO performance: maybe we could build SliverGridView and avoid always laying out all the rows
+      child: ColoredBox(
+        color: widget.backgroundColor ?? Theme.of(context).dividerColor,
+        child: PageTransitionSwitcher(
+          reverse: _previousIndex!=null && _previousIndex!>_currentIndex,
+          layoutBuilder: (entries) {
+            return Stack(
+              alignment: Alignment.topCenter,
+              children: entries,
+            );
+          },
+          transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
+            return SharedAxisTransition(
+              animation: primaryAnimation,
+              secondaryAnimation: secondaryAnimation,
+              transitionType: SharedAxisTransitionType.horizontal,
+              fillColor: Theme.of(context).cardColor,
+              child: child,
+            );
+          },
+          child: result,
+        ),
+      ),
+    );
+    if (minWidth!=null) {
+      result = SliverStickyHeader(
+        footer: true,
+        stickOffset: 12,
+        header: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < minWidth) {
+              return Scrollbar(
+                controller: overflowScrollController1,
+                child: SizedBox(
+                  height: 12,
+                  child: NotificationRelayer(
+                    controller: overflowRelayController,
+                    child: Container(),
+                  ),
+                ),
+              );
+            } else {
+              return SizedBox.shrink();
+            }
+          },
+        ),
+        sliver: result,
+      );
+    }
+    final weekdays = _weekDays==null ? null : Padding(
+      padding: EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          SizedBox(
+            width: _timeLineWidth + _hourIndicatorSettings.offset,
+            child: _weekNumberBuilder.call(filteredDates[0]),
+          ),
+          ...List.generate(
+            filteredDates.length,
+                (index) => Expanded(
+              child: _weekDayBuilder(
+                filteredDates[index],
+              ),
+            ),
+          )
+        ],
+      ),
+    );
     return SliverStickyHeader.builder(
       // sticky: widget.enableStickyHeaders,
       // stickOffset: widget.stickyOffset,
       builder: (context, state) {
-        return ColoredBox(
-          color: widget.backgroundColor ?? Theme.of(context).cardColor,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Column(
-                children: [
-                  _weekHeaderBuilder(_currentStartDate, _currentEndDate),
-                  if (_weekDays!=null)
-                    Padding(
-                      padding: EdgeInsets.only(bottom: 10),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: _timeLineWidth + _hourIndicatorSettings.offset,
-                            child: _weekNumberBuilder.call(filteredDates[0]),
-                          ),
-                          ...List.generate(
-                            filteredDates.length,
-                                (index) => Expanded(
-                              child: _weekDayBuilder(
-                                filteredDates[index],
+        return _buildHorizontalSwipeGestureDetector(context,
+          ColoredBox(
+            color: widget.backgroundColor ?? Theme.of(context).cardColor,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Column(
+                  children: [
+                    _weekHeaderBuilder(_currentStartDate, _currentEndDate),
+                    if (weekdays!=null)
+                      if (minWidth==null)
+                        weekdays
+                      else
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            return OverflowScroll(
+                              scrollController: overflowScrollController2,
+                              autoscrollSpeed: null,
+                              consumeScrollNotifications: false,
+                              opacityGradientSize: 0,
+                              child: SizedBox(
+                                width: max(minWidth, constraints.maxWidth),
+                                child: weekdays,
                               ),
-                            ),
-                          )
-                        ],
-                      ),
+                            );
+                          },
+                        ),
+                  ],
+                ),
+                AnimatedPositioned(
+                  left: 0, right: 0, bottom: -2,
+                  height: state.isPinned ? 2 : 0,
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
+                  child: const CustomPaint(
+                    painter: SimpleShadowPainter(
+                      direction: SimpleShadowPainter.down,
+                      shadowOpacity: 0.2,
                     ),
-                ],
-              ),
-              AnimatedPositioned(
-                left: 0, right: 0, bottom: -2,
-                height: state.isPinned ? 2 : 0,
-                duration: Duration(milliseconds: 300),
-                curve: Curves.easeOutCubic,
-                child: const CustomPaint(
-                  painter: SimpleShadowPainter(
-                    direction: SimpleShadowPainter.down,
-                    shadowOpacity: 0.2,
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
-      sliver: SliverToBoxAdapter( // TODO performance: maybe we could build SliverGridView and avoid always laying out all the rows
-        child: ColoredBox(
-          color: widget.backgroundColor ?? Theme.of(context).dividerColor,
-          child: PageTransitionSwitcher(
-            reverse: _previousIndex!=null && _previousIndex!>_currentIndex,
-            layoutBuilder: (entries) {
-              return Stack(
-                alignment: Alignment.topCenter,
-                children: entries,
-              );
-            },
-            transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
-              return SharedAxisTransition(
-                animation: primaryAnimation,
-                secondaryAnimation: secondaryAnimation,
-                transitionType: SharedAxisTransitionType.horizontal,
-                fillColor: Theme.of(context).cardColor,
-                child: child,
-              );
-            },
-            child: ValueListenableBuilder(
-              valueListenable: _scrollConfiguration,
-              key: ValueKey(_hourHeight.toString() + dates[0].toString()),
-              builder: (_, __, ___) => InternalWeekViewPage<T>(
-                height: _height,
-                weekDayBuilder: _weekDayBuilder,
-                weekNumberBuilder: _weekNumberBuilder,
-                liveTimeIndicatorSettings: _liveTimeIndicatorSettings,
-                timeLineBuilder: _timeLineBuilder,
-                onTileTap: widget.onEventTap,
-                onDateLongPress: widget.onDateLongPress,
-                onDateTap: widget.onDateTap,
-                eventTileBuilder: _eventTileBuilder,
-                heightPerMinute: widget.heightPerMinute,
-                hourIndicatorSettings: _hourIndicatorSettings,
-                dates: dates,
-                showLiveLine: widget.showLiveTimeLineInAllDays ||
-                    _showLiveTimeIndicator(dates),
-                timeLineOffset: widget.timeLineOffset,
-                timeLineWidth: _timeLineWidth,
-                verticalLineOffset: 0,
-                showVerticalLine: true,
-                controller: controller,
-                hourHeight: _hourHeight,
-                eventArranger: _eventArranger,
-                weekDays: _weekDays,
-                minuteSlotSize: widget.minuteSlotSize,
-                scrollConfiguration: _scrollConfiguration,
-                fullDayEventBuilder: _fullDayEventBuilder,
-                startingHour: widget.startingHour,
-              ),
-            ),
-          ),
-        ),
-      ),
+      sliver: result,
+    );
+  }
+
+  Widget _buildHorizontalSwipeGestureDetector(BuildContext context, Widget child) {
+    return GestureDetector(
+      key: child.key,
+      onHorizontalDragEnd: (DragEndDetails details) {
+        if (details.primaryVelocity!=null && details.primaryVelocity! > 0) {
+          previousPage(); // User swiped Left
+        } else if (details.primaryVelocity!=null && details.primaryVelocity! < 0) {
+          nextPage(); // User swiped Right
+        }
+      },
+      child: child,
     );
   }
 
@@ -677,9 +784,14 @@ class WeekViewState<T extends Object?> extends State<WeekView<T>> {
       return RoundedEventTile(
         // borderRadius: BorderRadius.circular(6.0),
         title: events[0].title,
+        description: events[0].description,
         titleStyle: TextStyle(
           fontSize: 12,
-          // color: events[0].color.accent,
+          fontWeight: FontWeight.w700,
+        ),
+        descriptionStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
         ),
         totalEvents: events.length,
         padding: EdgeInsets.fromLTRB(4, 6, 6, 6),
