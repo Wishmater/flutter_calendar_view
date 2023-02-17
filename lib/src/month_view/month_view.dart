@@ -205,9 +205,9 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
 
   late VoidCallback _reloadCallback;
 
-  late final overflowScrollControllerGroup;
-  late final overflowScrollController1;
-  late final overflowScrollController2;
+  late final LinkedScrollControllerGroup overflowScrollControllerGroup;
+  late final ScrollController overflowScrollController1;
+  final overflowScrollController2Map = <int, ScrollController>{};
 
   @override
   void initState() {
@@ -215,7 +215,6 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
 
     overflowScrollControllerGroup = LinkedScrollControllerGroup();
     overflowScrollController1 = overflowScrollControllerGroup.addAndGet();
-    overflowScrollController2 = overflowScrollControllerGroup.addAndGet();
 
     _reloadCallback = _reload;
 
@@ -291,6 +290,9 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
           (n) => n is ScrollNotification || n is ScrollMetricsNotification,
     );
     final key = ValueKey(date.toIso8601String());
+    overflowScrollController2Map[_currentIndex] ??= overflowScrollControllerGroup.addAndGet();
+    final overflowScrollController2 = overflowScrollController2Map[_currentIndex]!;
+
     final resultBuilder = (context) => _MonthPageBuilder<T>(
       key: key,
       onCellTap: widget.onCellTap,
@@ -317,7 +319,7 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               return OverflowScroll(
-                scrollController: overflowScrollController1,
+                scrollController: overflowScrollController2,
                 autoscrollSpeed: null,
                 consumeScrollNotifications: false,
                 opacityGradientSize: 0,
@@ -410,7 +412,7 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
                       LayoutBuilder(
                         builder: (context, constraints) {
                           return OverflowScroll(
-                            scrollController: overflowScrollController2,
+                            scrollController: overflowScrollController1,
                             autoscrollSpeed: null,
                             consumeScrollNotifications: false,
                             opacityGradientSize: 0,

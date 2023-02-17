@@ -99,16 +99,13 @@ class RoundedEventTile extends StatelessWidget {
                         overflow: TextOverflow.fade,
                       ),
                     if (description.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 15.0),
-                        child: Text(
-                          description,
-                          style: descriptionStyle ??
-                              TextStyle(
-                                fontSize: 17,
-                                color: backgroundColor?.accent.withAlpha(200),
-                              ),
-                        ),
+                      Text(
+                        description,
+                        style: descriptionStyle ??
+                            TextStyle(
+                              fontSize: 17,
+                              color: backgroundColor?.accent.withAlpha(200),
+                            ),
                       ),
                     if (totalEvents > 1)
                       Text(
@@ -209,6 +206,7 @@ class FullDayEventView<T> extends StatelessWidget {
     this.padding,
     this.itemView,
     this.titleStyle,
+    this.descriptionStyle,
     this.onEventTap,
     required this.date,
   }) : super(key: key);
@@ -227,6 +225,9 @@ class FullDayEventView<T> extends StatelessWidget {
 
   /// Style for title
   final TextStyle? titleStyle;
+
+  /// Style for description
+  final TextStyle? descriptionStyle;
 
   /// Called when user taps on event tile.
   final TileTapCallback<T>? onEventTap;
@@ -265,13 +266,29 @@ class FullDayEventView<T> extends StatelessWidget {
                       Expanded(
                         child: Container(
                           padding: const EdgeInsets.fromLTRB(2, 2, 3, 3),
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            events[index].title,
-                            style: titleStyle ??
-                                TextStyle(
-                                  fontSize: 12,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (events[index].title.isNotEmpty)
+                                Text(
+                                  events[index].title,
+                                  style: titleStyle ??
+                                      TextStyle(
+                                        fontSize: 20,
+                                      ),
+                                  softWrap: true,
+                                  overflow: TextOverflow.fade,
                                 ),
+                              if (events[index].description.isNotEmpty)
+                                Text(
+                                  events[index].description,
+                                  style: descriptionStyle ??
+                                      TextStyle(
+                                        fontSize: 17,
+                                      ),
+                                ),
+                            ],
                           ),
                         ),
                       ),

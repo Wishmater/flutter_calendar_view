@@ -283,9 +283,9 @@ class WeekViewState<T extends Object?> extends State<WeekView<T>> {
 
   final _scrollConfiguration = EventScrollConfiguration();
 
-  late final overflowScrollControllerGroup;
-  late final overflowScrollController1;
-  late final overflowScrollController2;
+  late final LinkedScrollControllerGroup overflowScrollControllerGroup;
+  late final ScrollController overflowScrollController1;
+  final overflowScrollController2Map = <int, ScrollController>{};
 
   @override
   void initState() {
@@ -293,7 +293,6 @@ class WeekViewState<T extends Object?> extends State<WeekView<T>> {
 
     overflowScrollControllerGroup = LinkedScrollControllerGroup();
     overflowScrollController1 = overflowScrollControllerGroup.addAndGet();
-    overflowScrollController2 = overflowScrollControllerGroup.addAndGet();
 
     _reloadCallback = _reload;
 
@@ -389,6 +388,9 @@ class WeekViewState<T extends Object?> extends State<WeekView<T>> {
           (n) => n is ScrollNotification || n is ScrollMetricsNotification,
     );
     final key = ValueKey(_hourHeight.toString() + dates[0].toString());
+    overflowScrollController2Map[_currentIndex] ??= overflowScrollControllerGroup.addAndGet();
+    final overflowScrollController2 = overflowScrollController2Map[_currentIndex]!;
+
     final resultBuilder = (context) => ValueListenableBuilder(
       valueListenable: _scrollConfiguration,
       key: key,
@@ -435,7 +437,7 @@ class WeekViewState<T extends Object?> extends State<WeekView<T>> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               return OverflowScroll(
-                scrollController: overflowScrollController1,
+                scrollController: overflowScrollController2,
                 autoscrollSpeed: null,
                 consumeScrollNotifications: false,
                 opacityGradientSize: 0,
@@ -540,7 +542,7 @@ class WeekViewState<T extends Object?> extends State<WeekView<T>> {
                         LayoutBuilder(
                           builder: (context, constraints) {
                             return OverflowScroll(
-                              scrollController: overflowScrollController2,
+                              scrollController: overflowScrollController1,
                               autoscrollSpeed: null,
                               consumeScrollNotifications: false,
                               opacityGradientSize: 0,
@@ -675,6 +677,14 @@ class WeekViewState<T extends Object?> extends State<WeekView<T>> {
       onEventTap: (event, date) {
         widget.onEventTap?.call([event], date);
       },
+      titleStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+      ),
+      descriptionStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+      ),
     );
   }
 
@@ -774,13 +784,14 @@ class WeekViewState<T extends Object?> extends State<WeekView<T>> {
 
   /// Default timeline builder. This builder will be used if
   /// [widget.eventTileBuilder] is null
+  /// no arguments are used, but events ???
   Widget _defaultEventTileBuilder(
       DateTime date,
       List<CalendarEventData<T>> events,
-      Rect boundary,
+      Rect boundary, /// not used
       DateTime startDuration,
       DateTime endDuration) {
-    if (events.isNotEmpty)
+    if (events.isNotEmpty) {
       return RoundedEventTile(
         // borderRadius: BorderRadius.circular(6.0),
         title: events[0].title,
@@ -798,8 +809,9 @@ class WeekViewState<T extends Object?> extends State<WeekView<T>> {
         accentColor: events[0].color,
         // backgroundColor: events[0].color,
       );
-    else
+    } else {
       return Container();
+    }
   }
 
   /// Default view header builder. This builder will be used if
