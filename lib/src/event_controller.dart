@@ -132,7 +132,6 @@ class EventController<T extends Object?> extends ChangeNotifier {
     bool includeFullDayEvents = true,
   }) {
     if (forceUtc) date = date.forceUtc();
-    print (date);
     if (_eventFilter != null) return _eventFilter!.call(date, this.events);
 
     final events = <CalendarEventData<T>>[];
@@ -142,7 +141,6 @@ class EventController<T extends Object?> extends ChangeNotifier {
     }
 
     for (final rangingEvent in _calendarData.rangingEventList) {
-      print ('ranging: $date ${rangingEvent.date} ${date == rangingEvent.date}');
       if (date == rangingEvent.date ||
           date == rangingEvent.endDate ||
           (date.isBefore(rangingEvent.endDate) &&
@@ -163,7 +161,6 @@ class EventController<T extends Object?> extends ChangeNotifier {
     if (forceUtc) date = date.forceUtc();
     final events = <CalendarEventData<T>>[];
     for (final event in _calendarData.fullDayEventList) {
-      print ('$date ${event.date} ${event.endDate} ${date.difference(event.date)} ${event.endDate.difference(date)}');
       if (date.difference(event.date).inDays >= 0 &&
           event.endDate.difference(date).inDays >= 0) {
         events.add(event);
