@@ -22,10 +22,13 @@ class EventController<T extends Object?> extends ChangeNotifier {
     /// [MonthView], [DayView] and [WeekView].
     ///
     EventFilter<T>? eventFilter,
+    this.forceUtc = false,
   }) : _eventFilter = eventFilter;
 
   //#region Private Fields
   EventFilter<T>? _eventFilter;
+
+  bool forceUtc;
 
   // Store all calendar event data
   final CalendarData<T> _calendarData = CalendarData();
@@ -76,7 +79,8 @@ class EventController<T extends Object?> extends ChangeNotifier {
 
   /// Removes [event] from this controller.
   void remove(CalendarEventData<T> event) {
-    final date = event.date.withoutTime;
+    var date = event.date.withoutTime;
+    if (forceUtc) date = date.forceUtc();
 
     // Removes the event from single event map.
     if (_calendarData.events[date] != null) {
@@ -108,11 +112,13 @@ class EventController<T extends Object?> extends ChangeNotifier {
   }
 
   List<CalendarEventData<T>> getEventsStartingOnHour(DateTime date) {
+    if (forceUtc) date = date.forceUtc();
     return getEventsOnDay(date).where((e)
         => e.startTime!=null && e.startTime!.hour==date.hour).toList();
   }
 
   List<CalendarEventData<T>> getEventsSpanningToHour(DateTime date) {
+    if (forceUtc) date = date.forceUtc();
     return getEventsOnDay(date).where((e)
         => e.startTime!=null && e.startTime!.hour<date.hour
             && e.endTime!.hour>=date.hour).toList();
@@ -125,6 +131,8 @@ class EventController<T extends Object?> extends ChangeNotifier {
   List<CalendarEventData<T>> getEventsOnDay(DateTime date,{
     bool includeFullDayEvents = true,
   }) {
+    if (forceUtc) date = date.forceUtc();
+    print (date);
     if (_eventFilter != null) return _eventFilter!.call(date, this.events);
 
     final events = <CalendarEventData<T>>[];
@@ -134,6 +142,7 @@ class EventController<T extends Object?> extends ChangeNotifier {
     }
 
     for (final rangingEvent in _calendarData.rangingEventList) {
+      print ('ranging: $date ${rangingEvent.date} ${date == rangingEvent.date}');
       if (date == rangingEvent.date ||
           date == rangingEvent.endDate ||
           (date.isBefore(rangingEvent.endDate) &&
@@ -150,11 +159,13 @@ class EventController<T extends Object?> extends ChangeNotifier {
   }
 
   /// Returns full day events on given day.
-  List<CalendarEventData<T>> getFullDayEvent(DateTime dateTime) {
+  List<CalendarEventData<T>> getFullDayEvent(DateTime date) {
+    if (forceUtc) date = date.forceUtc();
     final events = <CalendarEventData<T>>[];
     for (final event in _calendarData.fullDayEventList) {
-      if (dateTime.difference(event.date).inDays >= 0 &&
-          event.endDate.difference(dateTime).inDays >= 0) {
+      print ('$date ${event.date} ${event.endDate} ${date.difference(event.date)} ${event.endDate.difference(date)}');
+      if (date.difference(event.date).inDays >= 0 &&
+          event.endDate.difference(date).inDays >= 0) {
         events.add(event);
       }
     }
@@ -182,7 +193,8 @@ class EventController<T extends Object?> extends ChangeNotifier {
         _calendarData.rangingEventList.add(event);
       }
     } else {
-      final date = event.date.withoutTime;
+      var date = event.date.withoutTime;
+      if (forceUtc) date = date.forceUtc();
       if (event.startTime==null && event.endTime==null) {
         _calendarData.fullDayEventList.add(event);
       } else {
@@ -216,4 +228,8 @@ class CalendarData<T> {
 
   // Stores all full day events
   final fullDayEventList = <CalendarEventData<T>>[];
+}
+
+extension ForceUtc on DateTime {
+  DateTime forceUtc() => isUtc ? this : toUtc().add(timeZoneOffset);
 }
