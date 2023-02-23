@@ -187,6 +187,7 @@ class FilledCell<T extends Object?> extends StatelessWidget {
                                 alignment: Alignment.centerLeft,
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
                                     if (events[index].title.isNotEmpty)
                                       Text(

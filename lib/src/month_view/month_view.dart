@@ -700,6 +700,7 @@ class _MonthPageBuilder<T> extends StatelessWidget {
                         : () => onCellTap?.call(events, monthDays[index]),
                     onLongPress: onDateLongPress==null ? null
                         : () => onDateLongPress?.call(monthDays[index]),
+                    mouseCursor: SystemMouseCursors.basic,
                     child: Container(
                       decoration: BoxDecoration(
                         border: showBorder
