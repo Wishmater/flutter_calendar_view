@@ -240,7 +240,7 @@ class EventGenerator<T extends Object?> extends StatelessWidget {
               fit: FlexFit.tight,
               child: Material(
                 color: Color.alphaBlend(
-                  events[index].events.first.color.withOpacity(0.15),
+                  (events[index].events.first.backgroundColor??events[index].events.first.color).withOpacity(0.1),
                   Theme.of(context).cardColor,
                 ),
                 clipBehavior: Clip.hardEdge,
@@ -248,25 +248,31 @@ class EventGenerator<T extends Object?> extends StatelessWidget {
                 elevation: 3,
                 child: InkWell(
                   onTap: () => onTileTap?.call(events[index].events, date),
-                  child: Builder(builder: (context) {
-                    if (scrollNotifier.shouldScroll &&
-                        events[index]
-                            .events
-                            .any((element) => element == scrollNotifier.event)) {
-                      _scrollToEvent(context);
-                    }
-                    return eventTileBuilder(
-                      date,
-                      events[index].events,
-                      Rect.fromLTWH( // boundary is never used
-                          events[index].left,
-                          events[index].top,
-                          events[index].right,
-                          height - events[index].bottom - events[index].top),
-                      events[index].startDuration,
-                      events[index].endDuration,
-                    );
-                  }),
+                  child: Stack(
+                    children: [
+                      if (events[index].events.first.overlayedWidget!=null)
+                        events[index].events.first.overlayedWidget!,
+                      Builder(builder: (context) {
+                        if (scrollNotifier.shouldScroll &&
+                            events[index]
+                                .events
+                                .any((element) => element == scrollNotifier.event)) {
+                          _scrollToEvent(context);
+                        }
+                        return eventTileBuilder(
+                          date,
+                          events[index].events,
+                          Rect.fromLTWH( // boundary is never used
+                              events[index].left,
+                              events[index].top,
+                              events[index].right,
+                              height - events[index].bottom - events[index].top),
+                          events[index].startDuration,
+                          events[index].endDuration,
+                        );
+                      }),
+                    ],
+                  ),
                 ),
               ),
             ),

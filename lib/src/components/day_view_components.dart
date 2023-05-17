@@ -246,7 +246,7 @@ class FullDayEventView<T> extends StatelessWidget {
             margin: EdgeInsets.symmetric(vertical: 2.0, horizontal: 3.0),
             child: Material(
               color: Color.alphaBlend(
-                events[index].color.withOpacity(0.15),
+                (events[index].backgroundColor??events[index].color).withOpacity(0.1),
                 Theme.of(context).cardColor,
               ),
               borderRadius: BorderRadius.circular(4.0),
@@ -256,41 +256,47 @@ class FullDayEventView<T> extends StatelessWidget {
                 onTap: onEventTap==null ? null : () =>
                     onEventTap?.call(events[index], date),
                 child: IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                  child: Stack(
                     children: [
-                      Container(
-                        width: 5,
-                        color: events[index].color,
-                      ),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.fromLTRB(2, 2, 3, 3),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (events[index].title.isNotEmpty)
-                                Text(
-                                  events[index].title,
-                                  style: titleStyle ??
-                                      TextStyle(
-                                        fontSize: 20,
-                                      ),
-                                  softWrap: true,
-                                  overflow: TextOverflow.fade,
-                                ),
-                              if (events[index].description.isNotEmpty)
-                                Text(
-                                  events[index].description,
-                                  style: descriptionStyle ??
-                                      TextStyle(
-                                        fontSize: 17,
-                                      ),
-                                ),
-                            ],
+                      if (events[index].overlayedWidget!=null)
+                        events[index].overlayedWidget!,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Container(
+                            width: 5,
+                            color: events[index].color,
                           ),
-                        ),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.fromLTRB(2, 2, 3, 3),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (events[index].title.isNotEmpty)
+                                    Text(
+                                      events[index].title,
+                                      style: titleStyle ??
+                                          TextStyle(
+                                            fontSize: 20,
+                                          ),
+                                      softWrap: true,
+                                      overflow: TextOverflow.fade,
+                                    ),
+                                  if (events[index].description.isNotEmpty)
+                                    Text(
+                                      events[index].description,
+                                      style: descriptionStyle ??
+                                          TextStyle(
+                                            fontSize: 17,
+                                          ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

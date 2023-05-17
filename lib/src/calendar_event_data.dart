@@ -31,11 +31,14 @@ class CalendarEventData<T extends Object?> {
   /// Defines color of event.
   /// This color will be used in default widgets provided by plugin.
   final Color color;
+  final Color? backgroundColor;
 
   /// Event on [date].
   final T? event;
 
   final DateTime? _endDate;
+
+  final Widget? overlayedWidget;
 
   /// Stores all the events on [date]
   const CalendarEventData({
@@ -43,10 +46,12 @@ class CalendarEventData<T extends Object?> {
     this.description = "",
     this.event,
     this.color = Colors.blue,
+    this.backgroundColor,
     this.startTime,
     this.endTime,
     DateTime? endDate,
     required this.date,
+    this.overlayedWidget,
   }) : _endDate = endDate;
 
   DateTime get endDate => _endDate ?? date;

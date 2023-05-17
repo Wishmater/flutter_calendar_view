@@ -164,7 +164,7 @@ class FilledCell<T extends Object?> extends StatelessWidget {
                   margin: EdgeInsets.symmetric(vertical: 2.0, horizontal: 3.0),
                   child: Material(
                     color: Color.alphaBlend(
-                      events[index].color.withOpacity(0.15),
+                      (events[index].backgroundColor??events[index].color).withOpacity(0.1),
                       Theme.of(context).cardColor,
                     ),
                     borderRadius: BorderRadius.circular(4.0),
@@ -174,42 +174,48 @@ class FilledCell<T extends Object?> extends StatelessWidget {
                       onTap: onTileTap==null ? null : () =>
                           onTileTap?.call(events[index], events[index].date),
                       child: IntrinsicHeight(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                        child: Stack(
                           children: [
-                            Container(
-                              width: 5,
-                              color: events[index].color,
-                            ),
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.fromLTRB(2, 2, 3, 3),
-                                alignment: Alignment.centerLeft,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    if (events[index].title.isNotEmpty)
-                                      Text(
-                                        events[index].title,
-                                        overflow: TextOverflow.clip,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    if (events[index].description.isNotEmpty)
-                                      Text(
-                                        events[index].description,
-                                        overflow: TextOverflow.clip,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                      ),
-                                  ],
+                            if (events[index].overlayedWidget!=null)
+                              events[index].overlayedWidget!,
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Container(
+                                  width: 5,
+                                  color: events[index].color,
                                 ),
-                              ),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.fromLTRB(2, 2, 3, 3),
+                                    alignment: Alignment.centerLeft,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        if (events[index].title.isNotEmpty)
+                                          Text(
+                                            events[index].title,
+                                            overflow: TextOverflow.clip,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        if (events[index].description.isNotEmpty)
+                                          Text(
+                                            events[index].description,
+                                            overflow: TextOverflow.clip,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
