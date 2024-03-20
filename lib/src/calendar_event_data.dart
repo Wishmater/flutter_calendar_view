@@ -38,8 +38,6 @@ class CalendarEventData<T extends Object?> {
 
   final DateTime? _endDate;
 
-  final Widget? overlayedWidget;
-
   /// Stores all the events on [date]
   const CalendarEventData({
     required this.title,
@@ -51,7 +49,6 @@ class CalendarEventData<T extends Object?> {
     this.endTime,
     DateTime? endDate,
     required this.date,
-    this.overlayedWidget,
   }) : _endDate = endDate;
 
   DateTime get endDate => _endDate ?? date;

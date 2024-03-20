@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../calendar_view.dart';
 import '../calendar_event_data.dart';
 import '../constants.dart';
 import '../extensions.dart';
@@ -105,6 +106,8 @@ class FilledCell<T extends Object?> extends StatelessWidget {
   /// color of highlighted cell title
   final Color? highlightedTitleColor;
 
+  final EventWidgetBuilder<T>? eventWidgetBuilder;
+
   /// This class will defines how cell will be displayed.
   /// This widget will display all the events as tile below date title.
   const FilledCell({
@@ -121,6 +124,7 @@ class FilledCell<T extends Object?> extends StatelessWidget {
     this.titleColor,
     this.highlightedTitleColor,
     this.dateStringBuilder,
+    this.eventWidgetBuilder,
   }) : super(key: key);
 
   @override
@@ -158,77 +162,81 @@ class FilledCell<T extends Object?> extends StatelessWidget {
             margin: EdgeInsets.only(top: 5.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: List.generate(
-                events.length,
-                (index) => Container(
-                  margin: EdgeInsets.symmetric(vertical: 2.0, horizontal: 3.0),
-                  child: Material(
-                    color: Color.alphaBlend(
-                      (events[index].backgroundColor??events[index].color).withOpacity(0.1),
-                      Theme.of(context).cardColor,
-                    ),
-                    borderRadius: BorderRadius.circular(4.0),
-                    clipBehavior: Clip.hardEdge,
-                    elevation: 3,
-                    child: InkWell(
-                      onTap: onTileTap==null ? null : () =>
-                          onTileTap?.call(events[index], events[index].date),
-                      child: IntrinsicHeight(
-                        child: Stack(
-                          children: [
-                            if (events[index].overlayedWidget!=null)
-                              events[index].overlayedWidget!,
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Container(
-                                  width: 5,
-                                  color: events[index].color,
-                                ),
-                                Expanded(
-                                  child: Container(
-                                    padding: const EdgeInsets.fromLTRB(2, 2, 3, 3),
-                                    alignment: Alignment.centerLeft,
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                      children: [
-                                        if (events[index].title.isNotEmpty)
-                                          Text(
-                                            events[index].title,
-                                            overflow: TextOverflow.clip,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        if (events[index].description.isNotEmpty)
-                                          Text(
-                                            events[index].description,
-                                            overflow: TextOverflow.clip,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w400,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              children: List.generate(events.length, (index) {
+                if (eventWidgetBuilder!=null) {
+                  return eventWidgetBuilder!(context, events[index],
+                        (context) => buildEventWidget(context, events[index]),
+                  );
+                } else {
+                  return buildEventWidget(context, events[index]);
+                }
+              },),
             ),
           ),
       ],
     );
   }
+
+  Widget buildEventWidget(BuildContext context, CalendarEventData<T> event) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 2.0, horizontal: 3.0),
+      child: Material(
+        color: Color.alphaBlend(
+          (event.backgroundColor??event.color).withOpacity(0.1),
+          Theme.of(context).cardColor,
+        ),
+        borderRadius: BorderRadius.circular(4.0),
+        clipBehavior: Clip.hardEdge,
+        elevation: 3,
+        child: InkWell(
+          onTap: onTileTap==null ? null : () => onTileTap?.call(event, event.date),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 4,
+                  color: event.color.withOpacity(0.8),
+                ),
+                SizedBox(width: 1,),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(2, 2, 3, 3),
+                    alignment: Alignment.centerLeft,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (event.title.isNotEmpty)
+                          Text(
+                            event.title,
+                            overflow: TextOverflow.clip,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        if (event.description.isNotEmpty)
+                          Text(
+                            event.description,
+                            overflow: TextOverflow.clip,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
 }
 
 class MonthPageHeader extends CalendarPageHeader {

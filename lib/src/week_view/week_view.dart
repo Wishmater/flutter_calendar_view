@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 
+import '../../calendar_view.dart';
 import '../../util/custom_painters.dart';
 import '../../util/my_sliver_sticky_header.dart';
 import '../../util/notification_relayer.dart';
@@ -26,6 +27,7 @@ import '../modals.dart';
 import '../style/header_style.dart';
 import '../typedefs.dart';
 import '_internal_week_view_page.dart';
+
 
 /// [Widget] to display week view.
 class WeekView<T extends Object?> extends StatefulWidget {
@@ -185,6 +187,8 @@ class WeekView<T extends Object?> extends StatefulWidget {
   /// a horizontal scrollable will be created
   final double? minWidthPerDay;
 
+  final EventWidgetBuilder<T>? eventWidgetBuilder;
+
   /// Main widget for week view.
   const WeekView({
     Key? key,
@@ -225,6 +229,7 @@ class WeekView<T extends Object?> extends StatefulWidget {
     this.fullDayEventBuilder,
     this.startingHour = 7,
     this.minWidthPerDay = 96,
+    this.eventWidgetBuilder,
   })  : assert((timeLineOffset) >= 0,
             "timeLineOffset must be greater than or equal to 0"),
         assert(timeLineWidth > 0,
@@ -421,6 +426,7 @@ class WeekViewState<T extends Object?> extends State<WeekView<T>> {
         scrollConfiguration: _scrollConfiguration,
         fullDayEventBuilder: _fullDayEventBuilder,
         startingHour: widget.startingHour,
+        eventWidgetBuilder: widget.eventWidgetBuilder,
       ),
     );
     Widget result;
@@ -685,6 +691,7 @@ class WeekViewState<T extends Object?> extends State<WeekView<T>> {
         fontSize: 12,
         fontWeight: FontWeight.w400,
       ),
+      eventWidgetBuilder: widget.eventWidgetBuilder,
     );
   }
 

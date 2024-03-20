@@ -5,6 +5,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../calendar_view.dart';
 import '../calendar_event_data.dart';
 import '../constants.dart';
 import '../extensions.dart';
@@ -209,6 +210,7 @@ class FullDayEventView<T> extends StatelessWidget {
     this.descriptionStyle,
     this.onEventTap,
     required this.date,
+    this.eventWidgetBuilder,
   }) : super(key: key);
 
   /// Constraints for view
@@ -235,80 +237,25 @@ class FullDayEventView<T> extends StatelessWidget {
   /// Defines date for which events will be displayed.
   final DateTime date;
 
+  final EventWidgetBuilder<T>? eventWidgetBuilder;
+
   @override
   Widget build(BuildContext context) {
     Widget result = ListView.builder(
       itemCount: events.length,
       padding: padding,
       shrinkWrap: true,
-      itemBuilder: (context, index) => itemView?.call(events[index]) ??
-          Container(
-            margin: EdgeInsets.symmetric(vertical: 2.0, horizontal: 3.0),
-            child: Material(
-              color: Color.alphaBlend(
-                (events[index].backgroundColor??events[index].color).withOpacity(0.1),
-                Theme.of(context).cardColor,
-              ),
-              borderRadius: BorderRadius.circular(4.0),
-              clipBehavior: Clip.hardEdge,
-              elevation: 3,
-              child: InkWell(
-                onTap: onEventTap==null ? null : () =>
-                    onEventTap?.call(events[index], date),
-                child: IntrinsicHeight(
-                  child: Stack(
-                    children: [
-                      if (events[index].overlayedWidget!=null)
-                        events[index].overlayedWidget!,
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Container(
-                            width: 5,
-                            color: events[index].color,
-                          ),
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.fromLTRB(2, 2, 3, 3),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (events[index].title.isNotEmpty)
-                                    Text(
-                                      events[index].title,
-                                      style: titleStyle ??
-                                          TextStyle(
-                                            fontSize: 20,
-                                          ),
-                                      softWrap: true,
-                                      overflow: TextOverflow.fade,
-                                    ),
-                                  if (events[index].description.isNotEmpty)
-                                    Text(
-                                      events[index].description,
-                                      style: descriptionStyle ??
-                                          TextStyle(
-                                            fontSize: 17,
-                                          ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(5),
-              color: events[index].color,
-            ),
-            alignment: Alignment.centerLeft,
-          ),
+      itemBuilder: (context, index) {
+        if (itemView!=null) {
+          return itemView?.call(events[index]);
+        } else if (eventWidgetBuilder!=null) {
+          return eventWidgetBuilder!(context, events[index],
+                (context) => buildEventWidget(context, events[index]),
+          );
+        } else {
+          return buildEventWidget(context, events[index]);
+        }
+      },
     );
     if (boxConstraints!=null) {
       result = ConstrainedBox(
@@ -318,4 +265,72 @@ class FullDayEventView<T> extends StatelessWidget {
     }
     return result;
   }
+
+  Widget buildEventWidget(BuildContext context, CalendarEventData<T> event) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 2.0, horizontal: 3.0),
+      child: Material(
+        color: Color.alphaBlend(
+          (event.backgroundColor??event.color).withOpacity(0.1),
+          Theme.of(context).cardColor,
+        ),
+        borderRadius: BorderRadius.circular(4.0),
+        clipBehavior: Clip.hardEdge,
+        elevation: 3,
+        child: InkWell(
+          onTap: onEventTap==null ? null : () => onEventTap?.call(event, date),
+          child: IntrinsicHeight(
+            child: Stack(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      width: 5,
+                      color: event.color,
+                    ),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(2, 2, 3, 3),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (event.title.isNotEmpty)
+                              Text(
+                                event.title,
+                                style: titleStyle ??
+                                    TextStyle(
+                                      fontSize: 20,
+                                    ),
+                                softWrap: true,
+                                overflow: TextOverflow.fade,
+                              ),
+                            if (event.description.isNotEmpty)
+                              Text(
+                                event.description,
+                                style: descriptionStyle ??
+                                    TextStyle(
+                                      fontSize: 17,
+                                    ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(5),
+        color: event.color,
+      ),
+      alignment: Alignment.centerLeft,
+    );
+  }
+
 }

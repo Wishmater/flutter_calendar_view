@@ -24,6 +24,12 @@ import '../extensions.dart';
 import '../style/header_style.dart';
 import '../typedefs.dart';
 
+typedef EventWidgetBuilder<T> = Widget Function(
+      BuildContext context,
+      CalendarEventData<T> event,
+      Widget Function(BuildContext) childBuilder,
+    );
+
 class MonthView<T extends Object?> extends StatefulWidget {
   /// A function that returns a [Widget] that determines appearance of
   /// each cell in month calendar.
@@ -143,6 +149,8 @@ class MonthView<T extends Object?> extends StatefulWidget {
   /// Style for MontView header.
   final HeaderStyle headerStyle;
 
+  final EventWidgetBuilder<T>? eventWidgetBuilder;
+
   /// Main [Widget] to display month view.
   const MonthView({
     Key? key,
@@ -170,6 +178,7 @@ class MonthView<T extends Object?> extends StatefulWidget {
     this.minWidth = 848,
     this.expandCells = true,
     this.minCellHeight = 128,
+    this.eventWidgetBuilder,
   }) : super(key: key);
 
   @override
@@ -577,6 +586,7 @@ class MonthViewState<T extends Object?> extends State<MonthView<T>> {
       onTileTap: widget.onEventTap,
       dateStringBuilder: widget.dateStringBuilder,
       isInMonth: isInMonth,
+      eventWidgetBuilder: widget.eventWidgetBuilder,
     );
   }
 

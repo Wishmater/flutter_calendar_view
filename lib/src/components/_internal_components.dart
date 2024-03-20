@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../calendar_view.dart';
 import '../calendar_event_data.dart';
 import '../constants.dart';
 import '../enumerations.dart';
@@ -201,6 +202,8 @@ class EventGenerator<T extends Object?> extends StatelessWidget {
   /// in 24hr format
   final int startingHour;
 
+  final EventWidgetBuilder<T>? eventWidgetBuilder;
+
   /// A widget that display event tiles in day/week view.
   const EventGenerator({
     Key? key,
@@ -213,6 +216,7 @@ class EventGenerator<T extends Object?> extends StatelessWidget {
     required this.onTileTap,
     required this.scrollNotifier,
     required this.startingHour,
+    this.eventWidgetBuilder,
   }) : super(key: key);
 
   /// Arrange events and returns list of [Widget] that displays event
@@ -227,61 +231,72 @@ class EventGenerator<T extends Object?> extends StatelessWidget {
     );
 
     return List.generate(events.length, (index) {
-      return Positioned(
-        left: 0, right: 0,
-        top: events[index].top,
-        bottom: events[index].bottom,
-        child: Row(
-          children: [
-            if (events[index].left > 0)
-              Flexible(flex: events[index].left.round(), child: Container(),),
-            Flexible(
-              flex: (events[index].right-events[index].left).round(),
-              fit: FlexFit.tight,
-              child: Material(
-                color: Color.alphaBlend(
-                  (events[index].events.first.backgroundColor??events[index].events.first.color).withOpacity(0.1),
-                  Theme.of(context).cardColor,
-                ),
-                clipBehavior: Clip.hardEdge,
-                borderRadius: BorderRadius.circular(6.0),
-                elevation: 3,
-                child: InkWell(
-                  onTap: () => onTileTap?.call(events[index].events, date),
-                  child: Stack(
-                    children: [
-                      if (events[index].events.first.overlayedWidget!=null)
-                        events[index].events.first.overlayedWidget!,
-                      Builder(builder: (context) {
-                        if (scrollNotifier.shouldScroll &&
-                            events[index]
-                                .events
-                                .any((element) => element == scrollNotifier.event)) {
-                          _scrollToEvent(context);
-                        }
-                        return eventTileBuilder(
-                          date,
-                          events[index].events,
-                          Rect.fromLTWH( // boundary is never used
-                              events[index].left,
-                              events[index].top,
-                              events[index].right,
-                              height - events[index].bottom - events[index].top),
-                          events[index].startDuration,
-                          events[index].endDuration,
-                        );
-                      }),
-                    ],
-                  ),
+      if (eventWidgetBuilder!=null) {
+        return eventWidgetBuilder!(context, events[index].events.first,
+              (context) => buildEventWidget(context, events[index]),
+        );
+      } else {
+        return buildEventWidget(context, events[index]);
+      }
+    });
+  }
+
+  Widget buildEventWidget(BuildContext context, OrganizedCalendarEventData<T> event) {
+    return Positioned(
+      left: 0, right: 0,
+      top: event.top,
+      bottom: event.bottom,
+      child: Row(
+        children: [
+          if (event.left > 0)
+            Flexible(flex: event.left.round(), child: Container(),),
+          Flexible(
+            flex: (event.right-event.left).round(),
+            fit: FlexFit.tight,
+            child: Material(
+              color: Color.alphaBlend(
+                (event.events.first.backgroundColor??event.events.first.color).withOpacity(0.1),
+                Theme.of(context).cardColor,
+              ),
+              clipBehavior: Clip.hardEdge,
+              borderRadius: BorderRadius.circular(6.0),
+              elevation: 3,
+              child: InkWell(
+                onTap: () => onTileTap?.call(event.events, date),
+                child: Stack(
+                  children: [
+                    Builder(builder: (context) {
+                      if (scrollNotifier.shouldScroll &&
+                          event
+                              .events
+                              .any((element) => element == scrollNotifier.event)) {
+                        _scrollToEvent(context);
+                      }
+                      return eventTileBuilder(
+                        date,
+                        event.events,
+                        Rect.fromLTWH( // boundary is never used
+                            event.left,
+                            event.top,
+                            event.right,
+                            height - event.bottom - event.top),
+                        event.startDuration,
+                        event.endDuration,
+                      );
+                    }),
+                  ],
                 ),
               ),
             ),
-            if (events[index].columns - events[index].right > 0)
-              Flexible(flex: (events[index].columns - events[index].right).round(), child: Container(),),
-          ],
-        ),
-      );
-    });
+          ),
+          if (event.columns - event.right > 0)
+            Flexible(
+              flex: (event.columns - event.right).round(),
+              child: Container(),
+            ),
+        ],
+      ),
+    );
   }
 
   void _scrollToEvent(BuildContext context) {

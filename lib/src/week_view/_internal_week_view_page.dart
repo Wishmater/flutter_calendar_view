@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../calendar_view.dart';
 import '../components/_internal_components.dart';
 import '../components/event_scroll_notifier.dart';
 import '../enumerations.dart';
@@ -101,6 +102,8 @@ class InternalWeekViewPage<T extends Object?> extends StatelessWidget {
   /// in 24hr format
   final int startingHour;
 
+  final EventWidgetBuilder<T>? eventWidgetBuilder;
+
   /// A single page for week view.
   const InternalWeekViewPage({
     Key? key,
@@ -129,6 +132,7 @@ class InternalWeekViewPage<T extends Object?> extends StatelessWidget {
     required this.scrollConfiguration,
     required this.fullDayEventBuilder,
     required this.startingHour,
+    this.eventWidgetBuilder,
   }) : super(key: key);
 
   @override
@@ -231,6 +235,7 @@ class InternalWeekViewPage<T extends Object?> extends StatelessWidget {
                             ),
                             heightPerMinute: heightPerMinute,
                             startingHour: startingHour,
+                            eventWidgetBuilder: eventWidgetBuilder,
                           ),
                         ],
                       ),
