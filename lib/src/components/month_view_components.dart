@@ -135,7 +135,7 @@ class FilledCell<T extends Object?> extends StatelessWidget {
         ? highlightedTitleColor
             ?? (ThemeData.estimateBrightnessForColor(highlightColor)==Brightness.light
                 ? Colors.black : Colors.white)
-        : this.titleColor ?? Theme.of(context).textTheme.bodyText1!.color!;
+        : this.titleColor ?? Theme.of(context).textTheme.bodyLarge!.color!;
     return Column(
       children: [
         SizedBox(
@@ -310,7 +310,7 @@ class WeekDayTile extends StatelessWidget {
       ),
       child: Text(
         weekDayStringBuilder?.call(dayIndex) ?? Constants.weekTitles[dayIndex],
-        style: textStyle ?? Theme.of(context).textTheme.subtitle1!.copyWith(
+        style: textStyle ?? Theme.of(context).textTheme.titleMedium!.copyWith(
           fontWeight: FontWeight.w600,
         ),
       ),

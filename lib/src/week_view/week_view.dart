@@ -639,7 +639,7 @@ class WeekViewState<T extends Object?> extends State<WeekView<T>> {
 
     _liveTimeIndicatorSettings = widget.liveTimeIndicatorSettings ??
         HourIndicatorSettings(
-          color: Theme.of(context).textTheme.bodyText1!.color!,
+          color: Theme.of(context).textTheme.bodyLarge!.color!,
           height: widget.heightPerMinute,
           offset: 5,
         );
@@ -745,11 +745,11 @@ class WeekViewState<T extends Object?> extends State<WeekView<T>> {
       children: [
         Text(widget.weekDayStringBuilder?.call(date.weekday - 1) ??
             Constants.weekTitles[date.weekday - 1],
-          style: Theme.of(context).textTheme.subtitle2,
+          style: Theme.of(context).textTheme.titleSmall,
         ),
         Text(widget.weekDayDateStringBuilder?.call(date.day) ??
             date.day.toString(),
-          style: Theme.of(context).textTheme.subtitle1,
+          style: Theme.of(context).textTheme.titleMedium,
         ),
       ],
     );

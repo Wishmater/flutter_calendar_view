@@ -134,7 +134,7 @@ class SliverStickyHeaderState {
 
   @override
   int get hashCode {
-    return hashValues(scrollPercentage, isPinned);
+    return Object.hash(scrollPercentage, isPinned);
   }
 }
 

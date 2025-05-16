@@ -126,7 +126,7 @@ class _CalendarPageHeaderState extends State<CalendarPageHeader> {
                     child: Text(
                       widget.dateStringBuilder(widget.date, secondaryDate: widget.secondaryDate),
                       textAlign: widget.headerStyle.titleAlign,
-                      style: widget.headerStyle.headerTextStyle ?? Theme.of(context).textTheme.subtitle1,
+                      style: widget.headerStyle.headerTextStyle ?? Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
                 ),
